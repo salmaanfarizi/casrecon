@@ -321,7 +321,7 @@ class CashReconciliationApp {
 }
 
 
-  ccalculateCashBalance() {
+  calculateCashBalance() {
   const totalSales       = this.toNum(this.getValue('totalSalesValue'));
   const discountWithVAT  = this.toNum(this.getValue('discountWithVAT'));  // NEW
 
