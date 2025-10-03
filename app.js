@@ -312,59 +312,92 @@ class CashReconciliationApp {
     this.recomputeSalesGrandTotal();
     this.applySoldOnlyFilter();
   }
+  handleDiscountChange() {
+  const base = this.toNum(this.getValue('discountBase'));
+  const withVAT = base * 1.15;
+  this.setValue('discountWithVAT', withVAT.toFixed(2));
+  this.calculateCashBalance();
+  this.saveToStorage();
+}
 
-  calculateCashBalance() {
-    const totalSales      = this.toNum(this.getValue('totalSalesValue'));
-    const creditSales     = this.toNum(this.getValue('creditSales'));
-    const creditRepayment = this.toNum(this.getValue('creditRepayment'));
-    const bankPOS         = this.toNum(this.getValue('bankPOS'));
-    const bankTransfer    = this.toNum(this.getValue('bankTransfer'));
-    const cheque          = this.toNum(this.getValue('cheque'));
-    const expected = totalSales - creditSales + creditRepayment - bankPOS - bankTransfer - cheque;
-    this.setValue('expectedCashBalance', expected.toFixed(2));
-    this.setText('summaryCreditSales', `SAR ${creditSales.toFixed(2)}`);
-    const bankDeposits = bankPOS + bankTransfer + cheque;
-    this.setText('summaryBankDeposits', `SAR ${bankDeposits.toFixed(2)}`);
-    this.calculateDifference();
-    this.saveToStorage();
-  }
+
+  ccalculateCashBalance() {
+  const totalSales       = this.toNum(this.getValue('totalSalesValue'));
+  const discountWithVAT  = this.toNum(this.getValue('discountWithVAT'));  // NEW
+
+  const creditSales      = this.toNum(this.getValue('creditSales'));
+  const creditRepayment  = this.toNum(this.getValue('creditRepayment'));
+  const bankPOS          = this.toNum(this.getValue('bankPOS'));
+  const bankTransfer     = this.toNum(this.getValue('bankTransfer'));
+  const cheque           = this.toNum(this.getValue('cheque'));
+
+  // Deduct the discount incl. 15%
+  const expected = totalSales
+                 - discountWithVAT
+                 - creditSales
+                 + creditRepayment
+                 - bankPOS
+                 - bankTransfer
+                 - cheque;
+
+  this.setValue('expectedCashBalance', expected.toFixed(2));
+
+  this.setText('summaryCreditSales', `SAR ${creditSales.toFixed(2)}`);
+  const bankDeposits = bankPOS + bankTransfer + cheque;
+  this.setText('summaryBankDeposits', `SAR ${bankDeposits.toFixed(2)}`);
+
+  this.calculateDifference();
+  this.saveToStorage();
+}
+
 
   calculateCashNotes() {
-    const denoms = [500, 100, 50, 20, 10, 5];
-    let total = 0;
-    denoms.forEach(d => {
-      const count = this.toNum(this.getValue(`note${d}`));
-      const val   = count * d;
-      this.setText(`val${d}`, val);
-      total += val;
-    });
-    this.setValue('cashNotes', total.toFixed(2));
-    this.calculateActualCash();
-  }
+  const denoms = [500, 100, 50, 20, 10, 5];
+  let total = 0;
+  denoms.forEach(d => {
+    const count = this.toNum(this.getValue(`note${d}`));
+    const val = count * d;
+    this.setText(`val${d}`, val.toFixed(2));
+    total += val;
+  });
+  this.setValue('cashNotes', total.toFixed(2));
+  this.calculateActualCash();
+  this.saveToStorage();
+}
+
 
   calculateCoins() {
-    const c2   = this.toNum(this.getValue('coin2'))   * 2;
-    const c1   = this.toNum(this.getValue('coin1'))   * 1;
-    const c050 = this.toNum(this.getValue('coin050')) * 0.5;
-    const c025 = this.toNum(this.getValue('coin025')) * 0.25;
-    this.setText('valc2',   c2.toFixed(2));
-    this.setText('valc1',   c1.toFixed(2));
-    this.setText('valc050', c050.toFixed(2));
-    this.setText('valc025', c025.toFixed(2));
-    const coins = c2 + c1 + c050 + c025;
-    this.setValue('coinsTotal', coins.toFixed(2));
-    this.calculateActualCash();
-  }
+  const c2   = this.toNum(this.getValue('coin2'));
+  const c1   = this.toNum(this.getValue('coin1'));
+  const c050 = this.toNum(this.getValue('coin050'));
+  const c025 = this.toNum(this.getValue('coin025'));
+
+  const v2   = c2 * 2;
+  const v1   = c1 * 1;
+  const v050 = c050 * 0.5;
+  const v025 = c025 * 0.25;
+
+  this.setText('valC2',   v2.toFixed(2));
+  this.setText('valC1',   v1.toFixed(2));
+  this.setText('valC050', v050.toFixed(2));
+  this.setText('valC025', v025.toFixed(2));
+
+  const coinsTotal = v2 + v1 + v050 + v025;
+  this.setValue('coinsTotal', coinsTotal.toFixed(2));
+
+  this.calculateActualCash();
+  this.saveToStorage();
+}
+
 
   calculateActualCash() {
-    const notes  = this.toNum(this.getValue('cashNotes'));
-    const coins  = this.toNum(this.getValue('coinsTotal'));
-    const actual = notes + coins;
-    this.setValue('actualCashTotal', actual.toFixed(2));
-    this.setText('summaryCashCollected', `SAR ${actual.toFixed(2)}`);
-    this.calculateDifference();
-    this.saveToStorage();
-  }
+  const notes = this.toNum(this.getValue('cashNotes'));
+  const coins = this.toNum(this.getValue('coinsTotal'));
+  const actual = notes + coins;
+  this.setValue('actualCashTotal', actual.toFixed(2));
+  this.setText('summaryCashCollected', `SAR ${actual.toFixed(2)}`);
+  this.calculateDifference();
+}
 
   calculateDifference() {
     const expected = this.toNum(this.getValue('expectedCashBalance'));
@@ -453,6 +486,8 @@ class CashReconciliationApp {
       date: this.getValue('salesDate'),
       salesItems,
       totalSales: this.toNum(this.getValue('totalSalesValue')),
+      discountBase:    this.toNum(this.getValue('discountBase')),
+discountWithVAT: this.toNum(this.getValue('discountWithVAT')),
       creditSales: this.toNum(this.getValue('creditSales')),
       creditRepayment: this.toNum(this.getValue('creditRepayment')),
       bankPOS: this.toNum(this.getValue('bankPOS')),
@@ -460,26 +495,28 @@ class CashReconciliationApp {
       cheque: this.toNum(this.getValue('cheque')),
       expectedCash: this.toNum(this.getValue('expectedCashBalance')),
       cashNotes: {
-        total: this.toNum(this.getValue('cashNotes')),
-        denominations: {
-          '500': this.toNum(this.getValue('note500')),
-          '100': this.toNum(this.getValue('note100')),
-          '50': this.toNum(this.getValue('note50')),
-          '20': this.toNum(this.getValue('note20')),
-          '10': this.toNum(this.getValue('note10')),
-          '5':  this.toNum(this.getValue('note5')),
-          '2':  this.toNum(this.getValue('coin2')),
-          '1':  this.toNum(this.getValue('coin1')),
-          '0.50': this.toNum(this.getValue('coin050')),
-          '0.25': this.toNum(this.getValue('coin025'))
-        }
-      },
-      coins: this.toNum(this.getValue('coinsTotal')),
-      actualCash: this.toNum(this.getValue('actualCashTotal')),
-      difference: this.toNum(this.getValue('actualCashTotal')) - this.toNum(this.getValue('expectedCashBalance')),
-      timestamp: new Date().toISOString()
-    };
-  }
+      total: this.toNum(this.getValue('cashNotes')),
+      denominations: {
+        '500': this.toNum(this.getValue('note500')),
+        '100': this.toNum(this.getValue('note100')),
+        '50':  this.toNum(this.getValue('note50')),
+        '20':  this.toNum(this.getValue('note20')),
+        '10':  this.toNum(this.getValue('note10')),
+        '5':   this.toNum(this.getValue('note5')),
+        // include coin breakdown so GAS can write CASH_DENOMINATIONS
+        '2':    this.toNum(this.getValue('coin2')),
+        '1':    this.toNum(this.getValue('coin1')),
+        '0.50': this.toNum(this.getValue('coin050')),
+        '0.25': this.toNum(this.getValue('coin025')),
+      }
+    },
+    coins: this.toNum(this.getValue('coinsTotal')),   // keep numeric coins too
+    actualCash: this.toNum(this.getValue('actualCashTotal')),
+    difference: this.toNum(this.getValue('actualCashTotal')) - this.toNum(this.getValue('expectedCashBalance')),
+    timestamp: new Date().toISOString()
+  };
+}
+
 
   exportReport() {
     const data = this.collectData();
@@ -494,6 +531,8 @@ class CashReconciliationApp {
     });
     csv += '\nCASH RECONCILIATION\n';
     csv += `Total Sales,${data.totalSales}\n`;
+    csv += `Discount (Base),${data.discountBase}\n`;
+csv += `Discount (+15%),${data.discountWithVAT}\n`;
     csv += `Credit Sales,${data.creditSales}\n`;
     csv += `Credit Repayment,${data.creditRepayment}\n`;
     csv += `Bank POS,${data.bankPOS}\n`;
@@ -548,6 +587,10 @@ class CashReconciliationApp {
           this.updateRowStatus(i.code, i.quantity);
         }
       });
+      this.setValue('discountBase',    (data.discountBase ?? ''));
+this.setValue('discountWithVAT', (data.discountWithVAT ?? (this.toNum(data.discountBase) * 1.15 || 0).toFixed(2)));
+this.handleDiscountChange(); // ensures expected cash refreshes
+
       this.setValue('creditSales',     data.creditSales     || '');
       this.setValue('creditRepayment', data.creditRepayment || '');
       this.setValue('bankPOS',         data.bankPOS         || '');

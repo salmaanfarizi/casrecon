@@ -82,6 +82,23 @@
               <input type="number" class="input-field result-field" id="totalSalesValue" readonly>
             </div>
           </div>
+          <!-- (-) Discount -->
+<div class="input-group">
+  <label class="input-label">(-) Discount</label>
+  <div class="input-wrapper" style="gap:10px; flex-wrap:wrap">
+    <!-- Base the user types -->
+    <span class="currency-prefix">SAR</span>
+    <input type="number" class="input-field negative" id="discountBase" step="0.01"
+           placeholder="0.00" onchange="app.handleDiscountChange()" oninput="app.handleDiscountChange()">
+
+    <!-- Auto: base + 15% -->
+    <span style="font-size:12px;color:#6b7280;">incl. 15%</span>
+    <span class="currency-prefix">SAR</span>
+    <input type="number" class="input-field result-field" id="discountWithVAT" step="0.01"
+           placeholder="0.00" readonly>
+  </div>
+</div>
+
 
           <div class="input-group">
             <label class="input-label">(-) Credit Sales</label>
@@ -133,56 +150,85 @@
         </div>
 
         <div class="section-card">
-          <h3 class="section-title">💵 Cash Count</h3>
+  <h3 class="section-title">💵 Cash Count</h3>
 
-          <div class="input-group">
-            <label class="input-label">Cash Notes Total</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">SAR</span>
-              <input type="number" class="input-field" id="cashNotes" step="0.01" placeholder="0.00" readonly>
-            </div>
-          </div>
+  <!-- Notes total -->
+  <div class="input-group">
+    <label class="input-label">Cash Notes Total</label>
+    <div class="input-wrapper">
+      <span class="currency-prefix">SAR</span>
+      <input type="number" class="input-field" id="cashNotes" step="0.01" placeholder="0.00" readonly>
+    </div>
+  </div>
 
-          <div class="cash-breakdown" style="margin-top:10px;">
-            <div class="denomination">
-              <span class="denom-label">2</span>
-              <input type="number" class="denom-input" id="coin2" placeholder="0" onchange="app.calculateCoins()">
-              <span class="denom-value" id="valc2">0</span>
-            </div>
-            <div class="denomination">
-              <span class="denom-label">1</span>
-              <input type="number" class="denom-input" id="coin1" placeholder="0" onchange="app.calculateCoins()">
-              <span class="denom-value" id="valc1">0</span>
-            </div>
-            <div class="denomination">
-              <span class="denom-label">0.50</span>
-              <input type="number" class="denom-input" id="coin050" placeholder="0" onchange="app.calculateCoins()">
-              <span class="denom-value" id="valc050">0</span>
-            </div>
-            <div class="denomination">
-              <span class="denom-label">0.25</span>
-              <input type="number" class="denom-input" id="coin025" placeholder="0" onchange="app.calculateCoins()">
-              <span class="denom-value" id="valc025">0</span>
-            </div>
-          </div>
+  <!-- NOTES: 500, 100, 50, 20, 10, 5 -->
+  <div class="cash-breakdown" id="notesGrid">
+    <div class="denomination"><span class="denom-label">500</span>
+      <input type="number" class="denom-input" id="note500" placeholder="0" onchange="app.calculateCashNotes()">
+      <span class="denom-value" id="val500">0</span>
+    </div>
+    <div class="denomination"><span class="denom-label">100</span>
+      <input type="number" class="denom-input" id="note100" placeholder="0" onchange="app.calculateCashNotes()">
+      <span class="denom-value" id="val100">0</span>
+    </div>
+    <div class="denomination"><span class="denom-label">50</span>
+      <input type="number" class="denom-input" id="note50" placeholder="0" onchange="app.calculateCashNotes()">
+      <span class="denom-value" id="val50">0</span>
+    </div>
+    <div class="denomination"><span class="denom-label">20</span>
+      <input type="number" class="denom-input" id="note20" placeholder="0" onchange="app.calculateCashNotes()">
+      <span class="denom-value" id="val20">0</span>
+    </div>
+    <div class="denomination"><span class="denom-label">10</span>
+      <input type="number" class="denom-input" id="note10" placeholder="0" onchange="app.calculateCashNotes()">
+      <span class="denom-value" id="val10">0</span>
+    </div>
+    <div class="denomination"><span class="denom-label">5</span>
+      <input type="number" class="denom-input" id="note5" placeholder="0" onchange="app.calculateCashNotes()">
+      <span class="denom-value" id="val5">0</span>
+    </div>
+  </div>
 
-          <div class="input-group" style="margin-top:15px;">
-            <label class="input-label">Coins Total</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">SAR</span>
-              <input type="number" class="input-field" id="coinsTotal" step="0.01" placeholder="0.00" readonly>
-            </div>
-          </div>
+  <!-- Coins total -->
+  <div class="input-group" style="margin-top:15px;">
+    <label class="input-label">Coins Total</label>
+    <div class="input-wrapper">
+      <span class="currency-prefix">SAR</span>
+      <input type="number" class="input-field" id="coinsTotal" step="0.01" placeholder="0.00" readonly>
+    </div>
+  </div>
 
-          <div class="input-group" style="background:#eff6ff;padding:12px;border-radius:8px;margin-top:10px;">
-            <label class="input-label" style="font-size:16px;">Actual Cash Total</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix" style="font-size:16px;">SAR</span>
-              <input type="number" class="input-field result-field" id="actualCashTotal" readonly style="font-size:16px;color:#2563eb;">
-            </div>
-          </div>
-        </div>
-      </div>
+  <!-- COINS: 2, 1, 0.50, 0.25 (optional breakdown) -->
+  <div class="cash-breakdown" id="coinsGrid">
+    <div class="denomination"><span class="denom-label">2</span>
+      <input type="number" class="denom-input" id="coin2" placeholder="0" onchange="app.calculateCoins()">
+      <span class="denom-value" id="valC2">0.00</span>
+    </div>
+    <div class="denomination"><span class="denom-label">1</span>
+      <input type="number" class="denom-input" id="coin1" placeholder="0" onchange="app.calculateCoins()">
+      <span class="denom-value" id="valC1">0.00</span>
+    </div>
+    <div class="denomination"><span class="denom-label">0.50</span>
+      <input type="number" class="denom-input" id="coin050" placeholder="0" onchange="app.calculateCoins()">
+      <span class="denom-value" id="valC050">0.00</span>
+    </div>
+    <div class="denomination"><span class="denom-label">0.25</span>
+      <input type="number" class="denom-input" id="coin025" placeholder="0" onchange="app.calculateCoins()">
+      <span class="denom-value" id="valC025">0.00</span>
+    </div>
+  </div>
+
+  <!-- Actual -->
+  <div class="input-group" style="background:#eff6ff;padding:12px;border-radius:8px;margin-top:10px;">
+    <label class="input-label" style="font-size:16px;">Actual Cash Total</label>
+    <div class="input-wrapper">
+      <span class="currency-prefix" style="font-size:16px;">SAR</span>
+      <input type="number" class="input-field result-field" id="actualCashTotal"
+             readonly style="font-size:16px;color:#2563eb;">
+    </div>
+  </div>
+</div>
+
 
       <div id="differenceIndicator" class="difference-indicator balanced">
         <div style="font-size:14px;opacity:.8;margin-bottom:5px;">Cash Difference</div>
