@@ -1,0 +1,8 @@
+[build]
+  command = ""        # Static site; leave blank
+  publish = "."       # Root directory (adjust if /dist)
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
