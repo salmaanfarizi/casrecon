@@ -93,6 +93,14 @@ class CashReconciliationApp {
     }
   }
 
+  // Handle route selection from dropdown
+  handleRouteChange() {
+    const routeName = this.getValue('routeName');
+    if (routeName) {
+      this.selectRoute(routeName);
+    }
+  }
+
   selectRoute(route) {
     this.currentRoute = route;
 
@@ -286,11 +294,20 @@ class CashReconciliationApp {
     if (fetchBtn) fetchBtn.disabled = true;
 
     try {
+      console.log('Fetching inventory data with:', {
+        route: this.currentRoute,
+        currentDate: salesDate,
+        previousDate: prevStr
+      });
+
       const json = await this.callAppsScript('calculateSalesFromInventory', {
         route: this.currentRoute,
         currentDate: salesDate,
         previousDate: prevStr
       });
+
+      console.log('Backend response:', json);
+
       if (json.status === 'success' && Array.isArray(json.data)) {
         this.populateSalesDataFromCalc(json.data);
 
@@ -301,10 +318,12 @@ class CashReconciliationApp {
 
         this.showStatus(message, 'success');
       } else {
-        this.showStatus('No inventory data found for calculation', 'error');
+        console.warn('No data or unsuccessful response:', json);
+        const errorMsg = json.data || json.error || json.message || 'No inventory data found for calculation';
+        this.showStatus(errorMsg, 'error');
       }
     } catch (e) {
-      console.error(e);
+      console.error('Fetch inventory error:', e);
       this.showStatus('Unable to fetch inventory data. Please enter manually.', 'error');
     } finally {
       this.showLoading(false);
