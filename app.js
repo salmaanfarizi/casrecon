@@ -282,7 +282,8 @@ class CashReconciliationApp {
 
     this.showStatus('Fetching inventory data…', 'info');
     this.showLoading(true);
-    document.getElementById('fetchBtn').disabled = true;
+    const fetchBtn = document.getElementById('fetchBtn');
+    if (fetchBtn) fetchBtn.disabled = true;
 
     try {
       const json = await this.callAppsScript('calculateSalesFromInventory', {
@@ -307,7 +308,7 @@ class CashReconciliationApp {
       this.showStatus('Unable to fetch inventory data. Please enter manually.', 'error');
     } finally {
       this.showLoading(false);
-      document.getElementById('fetchBtn').disabled = false;
+      if (fetchBtn) fetchBtn.disabled = false;
     }
   }
 
@@ -448,7 +449,7 @@ class CashReconciliationApp {
     const date = this.getValue('salesDate');
     if (!date) return this.showStatus('Please select a date!', 'error');
     const btn = document.getElementById('saveBtn');
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
     this.showLoading(true);
     const payload = this.collectData();
     try {
@@ -466,7 +467,7 @@ class CashReconciliationApp {
       this.showStatus('Saved locally. Will sync when connection is restored.', 'warning');
       this.updateSyncStatus('disconnected');
     } finally {
-      btn.disabled = false;
+      if (btn) btn.disabled = false;
       this.showLoading(false);
     }
   }
