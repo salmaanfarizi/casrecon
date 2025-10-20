@@ -257,28 +257,32 @@ function calculateSalesFromInventory(payload) {
     // DEBUG: Log actual headers found
     Logger.log('Headers found: ' + JSON.stringify(headers));
 
-    // Find column indices
+    // Find column indices - UPDATED for actual inventory sheet structure
     const dateIdx = headers.indexOf('Date');
     const codeIdx = headers.indexOf('Code');
-    const openingIdx = headers.indexOf('Opening Stock');
-    const purchasesIdx = headers.indexOf('Purchases');
-    const closingIdx = headers.indexOf('Closing Stock');
-    const transferIdx = headers.indexOf('Stock Transfer'); // Add support for stock transfer
+    const physicalIdx = headers.indexOf('Physical');          // Physical count (closing stock)
+    const systemIdx = headers.indexOf('System');              // System calculated stock
+    const transferIdx = headers.indexOf('Transfer');          // Stock transferred
+    const addTransferIdx = headers.indexOf('Additional Transfer'); // Additional transfers
+    const differenceIdx = headers.indexOf('Difference');      // Discrepancy
+    const reimbursedIdx = headers.indexOf('Reimbursed');      // Adjustments
 
-    // DEBUG: Return detailed error if columns not found
-    if (dateIdx === -1 || codeIdx === -1) {
+    // DEBUG: Return detailed error if required columns not found
+    if (dateIdx === -1 || codeIdx === -1 || physicalIdx === -1) {
       return {
         status: 'error',
-        error: 'Required columns not found in inventory sheet',
+        error: 'Required columns not found in inventory sheet. Need at least: Date, Code, Physical',
         debug: {
           headersFound: headers,
           dateColumnIndex: dateIdx,
           codeColumnIndex: codeIdx,
-          openingColumnIndex: openingIdx,
-          purchasesColumnIndex: purchasesIdx,
-          closingColumnIndex: closingIdx,
+          physicalColumnIndex: physicalIdx,
+          systemColumnIndex: systemIdx,
           transferColumnIndex: transferIdx,
-          expectedHeaders: ['Date', 'Code', 'Opening Stock', 'Purchases', 'Closing Stock', 'Stock Transfer'],
+          addTransferColumnIndex: addTransferIdx,
+          differenceColumnIndex: differenceIdx,
+          reimbursedColumnIndex: reimbursedIdx,
+          expectedHeaders: ['Date', 'Code', 'Physical', 'System', 'Transfer', 'Additional Transfer', 'Difference', 'Reimbursed'],
           totalRows: data.length,
           sheetName: sheetName,
           spreadsheetId: SHEET_IDS.INVENTORY_SOURCE
@@ -329,24 +333,28 @@ function calculateSalesFromInventory(payload) {
       if (!inventoryByDate[dateStr][code]) {
         inventoryByDate[dateStr][code] = {
           code: code,
-          opening: 0,
-          purchases: 0,
+          physical: 0,
+          system: 0,
           transfer: 0,
-          closing: 0
+          addTransfer: 0,
+          difference: 0,
+          reimbursed: 0
         };
       }
 
       inventoryByDate[dateStr][code] = {
         code: code,
-        opening: Number(row[openingIdx] || 0),
-        purchases: Number(row[purchasesIdx] || 0),
+        physical: Number(row[physicalIdx] || 0),
+        system: systemIdx !== -1 ? Number(row[systemIdx] || 0) : 0,
         transfer: transferIdx !== -1 ? Number(row[transferIdx] || 0) : 0,
-        closing: Number(row[closingIdx] || 0)
+        addTransfer: addTransferIdx !== -1 ? Number(row[addTransferIdx] || 0) : 0,
+        difference: differenceIdx !== -1 ? Number(row[differenceIdx] || 0) : 0,
+        reimbursed: reimbursedIdx !== -1 ? Number(row[reimbursedIdx] || 0) : 0
       };
     }
 
     // Step 4: Calculate sales for current date
-    // Formula: Previous Day Closing + Previous Day Transfer + Current Day Purchases - Current Day Closing
+    // Formula: Previous Day Physical + Current Day Transfer + Current Day Additional Transfer - Current Day Physical
     const salesData = [];
     const currentInventory = inventoryByDate[currDateStr] || {};
     const previousInventory = lastAvailableDate ? inventoryByDate[lastAvailableDate] : {};
@@ -358,25 +366,28 @@ function calculateSalesFromInventory(payload) {
     ]);
 
     for (const code of allCodes) {
-      const current = currentInventory[code] || { opening: 0, purchases: 0, transfer: 0, closing: 0 };
-      const previous = previousInventory[code] || { opening: 0, purchases: 0, transfer: 0, closing: 0 };
+      const current = currentInventory[code] || { physical: 0, system: 0, transfer: 0, addTransfer: 0, difference: 0, reimbursed: 0 };
+      const previous = previousInventory[code] || { physical: 0, system: 0, transfer: 0, addTransfer: 0, difference: 0, reimbursed: 0 };
 
-      // Sales = Previous Closing + Previous Transfer + Current Purchases - Current Closing
-      const prevClosing = previous.closing;
-      const prevTransfer = previous.transfer;
-      const currPurchases = current.purchases;
-      const currClosing = current.closing;
+      // Sales = Previous Physical + Current Transfer + Current Additional Transfer - Current Physical
+      const prevPhysical = previous.physical;
+      const currTransfer = current.transfer;
+      const currAddTransfer = current.addTransfer;
+      const currPhysical = current.physical;
 
-      const salesQty = prevClosing + prevTransfer + currPurchases - currClosing;
+      const salesQty = prevPhysical + currTransfer + currAddTransfer - currPhysical;
 
       if (salesQty > 0 || salesQty < 0) { // Include negative sales (returns/adjustments)
         salesData.push({
           code: code,
           salesQty: salesQty,
-          previousClosing: prevClosing,
-          previousTransfer: prevTransfer,
-          currentPurchases: currPurchases,
-          currentClosing: currClosing,
+          previousPhysical: prevPhysical,
+          currentTransfer: currTransfer,
+          currentAddTransfer: currAddTransfer,
+          currentPhysical: currPhysical,
+          currentSystem: current.system,
+          currentDifference: current.difference,
+          currentReimbursed: current.reimbursed,
           lastDataDate: lastAvailableDate || 'N/A'
         });
       }
@@ -399,10 +410,12 @@ function calculateSalesFromInventory(payload) {
           columnIndices: {
             date: dateIdx,
             code: codeIdx,
-            opening: openingIdx,
-            purchases: purchasesIdx,
-            closing: closingIdx,
-            transfer: transferIdx
+            physical: physicalIdx,
+            system: systemIdx,
+            transfer: transferIdx,
+            addTransfer: addTransferIdx,
+            difference: differenceIdx,
+            reimbursed: reimbursedIdx
           },
           availableDates: Array.from(availableDates).sort(),
           datesInInventory: Object.keys(inventoryByDate).sort(),
@@ -411,7 +424,8 @@ function calculateSalesFromInventory(payload) {
           totalUniqueProducts: allCodes.size,
           salesDataCount: salesData.length,
           sheetName: sheetName,
-          spreadsheetId: SHEET_IDS.INVENTORY_SOURCE
+          spreadsheetId: SHEET_IDS.INVENTORY_SOURCE,
+          salesFormula: 'Previous Physical + Current Transfer + Current Additional Transfer - Current Physical'
         }
       }
     };
