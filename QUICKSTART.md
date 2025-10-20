@@ -24,6 +24,19 @@ Your Sheet: 1hLGPDXqyhfyBGAt1g-Jl3Tmc3g3YASjkH47cm_Rx414
 
 ---
 
+## ✅ What's Already Done
+
+**Good news!** Your backend is already deployed:
+
+```
+Backend URL: https://script.google.com/.../exec
+Sheet ID: 1hLGPDXqyhfyBGAt1g-Jl3Tmc3g3YASjkH47cm_Rx414
+```
+
+Both are already configured in the code! ✨
+
+---
+
 ## What You Need to Do
 
 ### Step 1: Migrate Your Existing Data (30 minutes)
@@ -56,38 +69,43 @@ Hidden (safe backup):
 
 ---
 
-### Step 2: Deploy Backend (15 minutes)
+### Step 2: Configure Backend (10 minutes) - OPTIONAL
 
-**Follow**: [`gas-backend/SETUP.md`](./gas-backend/SETUP.md)
+**Your backend is already deployed!** ✅
 
-**Quick Steps**:
-1. Go to [script.google.com](https://script.google.com)
-2. New Project → Name it "Cash Recon Backend"
-3. Copy `gas-backend/Code.gs` into the project
-4. **Update Configuration** (already partially done for you):
+```
+URL: https://script.google.com/macros/s/AKfycbzKiyFWj4QsKUakcSiqTwtLewCZeMM-bqRr2Ganjd0kZjHk0SXzJGt2HAejs_683um2/exec
+```
+
+**Only if you want inventory integration:**
+1. Open your deployed script at [script.google.com](https://script.google.com)
+2. Update these in `Code.gs`:
    ```javascript
    const SHEET_IDS = {
-     INVENTORY_SOURCE: 'YOUR_INVENTORY_SHEET_ID_HERE',  // ← Add your inventory sheet
+     INVENTORY_SOURCE: 'YOUR_INVENTORY_SHEET_ID_HERE',  // ← Add if you have inventory app
      CASH_DESTINATION: '1hLGPDXqyhfyBGAt1g-Jl3Tmc3g3YASjkH47cm_Rx414',  // ✅ Already set
      CATALOG: 'YOUR_CATALOG_SHEET_ID_HERE'  // ← Add your catalog sheet
    };
    ```
-5. Run `testConnection()` and grant permissions
-6. Deploy as Web App:
-   - Execute as: **Me**
-   - Access: **Anyone**
-7. Copy the deployment URL
+3. Redeploy the script
+
+**Test your backend**: Open `test-backend.html` in your browser
 
 ---
 
-### Step 3: Connect Frontend to Backend (5 minutes)
+### Step 3: Connect Frontend to Backend (OPTIONAL)
 
+**The backend URL is already hardcoded as a fallback!** ✅ Your app should work out of the box.
+
+**For better security** (optional), set it as environment variable:
 1. Go to Netlify dashboard
 2. Your site → Site configuration → Environment variables
 3. Add variable:
    - **Key**: `GAS_WEBAPP_URL`
-   - **Value**: [Paste your GAS deployment URL]
+   - **Value**: `https://script.google.com/macros/s/AKfycbzKiyFWj4QsKUakcSiqTwtLewCZeMM-bqRr2Ganjd0kZjHk0SXzJGt2HAejs_683um2/exec`
 4. Redeploy site
+
+**Why optional?** The URL is already in `netlify/functions/gas.js` as a fallback. Setting the env variable is just best practice for production.
 
 ---
 
