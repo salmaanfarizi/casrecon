@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Connection Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #059669;
+        }
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+        .error {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+        .info {
+            background: #e0f2fe;
+            border: 1px solid #0ea5e9;
+            color: #0c4a6e;
+        }
+        .loading {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #78350f;
+        }
+        .url-box {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        .test-group {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .test-group:last-child {
+            border-bottom: none;
+        }
+        h2 {
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Backend Connection Test</h1>
+        <p class="subtitle">Test your Google Apps Script backend connection</p>
+
+        <div class="url-box">
+            <strong>Backend URL:</strong><br>
+            https://script.google.com/macros/s/AKfycbzKiyFWj4QsKUakcSiqTwtLewCZeMM-bqRr2Ganjd0kZjHk0SXzJGt2HAejs_683um2/exec
+        </div>
+
+        <div class="test-group">
+            <h2>1. Direct Backend Test</h2>
+            <p>Tests the backend directly (bypassing Netlify proxy)</p>
+            <button onclick="testPing()">Test Ping</button>
+            <button onclick="testInit()">Test Init (Load Catalog)</button>
+            <button onclick="testHeartbeat()">Test Heartbeat</button>
+            <div id="directResult"></div>
+        </div>
+
+        <div class="test-group">
+            <h2>2. Via Netlify Proxy Test</h2>
+            <p>Tests through the Netlify function (production path)</p>
+            <button onclick="testViaProxy()">Test Via Proxy</button>
+            <div id="proxyResult"></div>
+        </div>
+
+        <div class="test-group">
+            <h2>3. Sheet Access Test</h2>
+            <p>Checks if backend can access your sheets</p>
+            <button onclick="testSheetAccess()">Check Sheet Access</button>
+            <div id="sheetResult"></div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzKiyFWj4QsKUakcSiqTwtLewCZeMM-bqRr2Ganjd0kZjHk0SXzJGt2HAejs_683um2/exec';
+        const PROXY_URL = '/.netlify/functions/gas';
+
+        function showResult(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = message;
+            el.className = `result ${type}`;
+        }
+
+        async function callBackend(url, action, payload = {}) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, ...payload })
+            });
+
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                throw new Error(`Non-JSON response: ${text.substring(0, 200)}`);
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.data || `HTTP ${response.status}`);
+            }
+
+            return data;
+        }
+
+        async function testPing() {
+            const btn = event.target;
+            btn.disabled = true;
+            showResult('directResult', '⏳ Testing ping...', 'loading');
+
+            try {
+                const result = await callBackend(BACKEND_URL, 'ping');
+                showResult('directResult',
+                    `✅ SUCCESS!\n\nResponse: ${JSON.stringify(result, null, 2)}`,
+                    'success'
+                );
+            } catch (error) {
+                showResult('directResult',
+                    `❌ FAILED\n\nError: ${error.message}\n\nThis might be a CORS issue (expected when testing directly).`,
+                    'error'
+                );
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function testInit() {
+            const btn = event.target;
+            btn.disabled = true;
+            showResult('directResult', '⏳ Loading catalog...', 'loading');
+
+            try {
+                const result = await callBackend(BACKEND_URL, 'init');
+                const catalogKeys = Object.keys(result.data?.catalog || {});
+                showResult('directResult',
+                    `✅ SUCCESS!\n\nCatalog loaded with ${catalogKeys.length} categories:\n${catalogKeys.join(', ')}\n\nFull response:\n${JSON.stringify(result, null, 2)}`,
+                    'success'
+                );
+            } catch (error) {
+                showResult('directResult',
+                    `❌ FAILED\n\nError: ${error.message}\n\nPossible causes:\n- CORS (use proxy test instead)\n- Catalog sheet not configured\n- Backend not deployed`,
+                    'error'
+                );
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function testHeartbeat() {
+            const btn = event.target;
+            btn.disabled = true;
+            showResult('directResult', '⏳ Sending heartbeat...', 'loading');
+
+            try {
+                const result = await callBackend(BACKEND_URL, 'heartbeat', {
+                    userId: 'test_user_123',
+                    route: 'Al-Hasa 1',
+                    module: 'cash',
+                    userName: 'Test User'
+                });
+                showResult('directResult',
+                    `✅ SUCCESS!\n\nHeartbeat received at: ${result.timestamp}\n\nFull response:\n${JSON.stringify(result, null, 2)}`,
+                    'success'
+                );
+            } catch (error) {
+                showResult('directResult',
+                    `❌ FAILED\n\nError: ${error.message}`,
+                    'error'
+                );
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function testViaProxy() {
+            const btn = event.target;
+            btn.disabled = true;
+            showResult('proxyResult', '⏳ Testing via Netlify proxy...', 'loading');
+
+            try {
+                const result = await callBackend(PROXY_URL, 'ping');
+                showResult('proxyResult',
+                    `✅ SUCCESS!\n\nProxy is working correctly!\n\nResponse: ${JSON.stringify(result, null, 2)}`,
+                    'success'
+                );
+            } catch (error) {
+                showResult('proxyResult',
+                    `❌ FAILED\n\nError: ${error.message}\n\nPossible causes:\n- Not running on Netlify (try deploying)\n- GAS_WEBAPP_URL env variable not set\n- Backend URL incorrect`,
+                    'error'
+                );
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function testSheetAccess() {
+            const btn = event.target;
+            btn.disabled = true;
+            showResult('sheetResult', '⏳ Checking sheet access...', 'loading');
+
+            try {
+                const result = await callBackend(BACKEND_URL, 'init');
+
+                let message = '';
+                if (result.success && result.data?.catalog) {
+                    const catalogKeys = Object.keys(result.data.catalog);
+                    message += `✅ CATALOG ACCESS: OK (${catalogKeys.length} categories loaded)\n\n`;
+
+                    if (catalogKeys.length === 4) {
+                        message += `⚠️ Using default catalog (catalog sheet may not be configured)\n\n`;
+                    }
+
+                    message += `Categories found:\n${catalogKeys.join('\n')}\n\n`;
+                    message += `Full catalog:\n${JSON.stringify(result.data.catalog, null, 2)}`;
+
+                    showResult('sheetResult', message, catalogKeys.length === 4 ? 'info' : 'success');
+                } else {
+                    throw new Error('Unexpected response format');
+                }
+            } catch (error) {
+                showResult('sheetResult',
+                    `❌ SHEET ACCESS FAILED\n\nError: ${error.message}\n\nTODO:\n1. Configure SHEET_IDS in Code.gs\n2. Ensure your Google account has access to the sheets\n3. Run testConnection() in Apps Script editor`,
+                    'error'
+                );
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

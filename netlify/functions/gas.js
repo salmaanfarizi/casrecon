@@ -10,8 +10,9 @@ export const handler = async event => {
     return { statusCode: 204, headers: cors, body: '' };
   }
 
+  // Your deployed GAS backend URL
   const GAS_URL = process.env.GAS_WEBAPP_URL ||
-    'https://script.google.com/macros/s/AKfycby69Ngv7yflRCqkOOtRznWOtzcJDMLltSFGkdWMZmTyYYiYvBNZrIkmffXpcdQTrVqk/exec';
+    'https://script.google.com/macros/s/AKfycbzKiyFWj4QsKUakcSiqTwtLewCZeMM-bqRr2Ganjd0kZjHk0SXzJGt2HAejs_683um2/exec';
 
   try {
     const incomingCT = event.headers['content-type'] || event.headers['Content-Type'] || 'application/json';
