@@ -95,28 +95,13 @@ class CashReconciliationApp {
 
   selectRoute(route) {
     this.currentRoute = route;
-
-    // Support for old route button UI (if it exists)
-    const selectedRouteEl = document.getElementById('selectedRoute');
-    if (selectedRouteEl) {
-      selectedRouteEl.textContent = route;
-    }
-
-    // Support for new dropdown UI
-    const routeNameEl = document.getElementById('routeName');
-    if (routeNameEl) {
-      routeNameEl.value = route;
-    }
-
-    // Old route buttons (if they exist)
+    document.getElementById('selectedRoute').textContent = route;
     document.querySelectorAll('.route-btn').forEach(btn => {
       btn.classList.remove('active');
       if (btn.textContent.trim() === route || (btn.textContent.trim() === 'Wholesale' && route === 'Al-Hasa Wholesale')) {
         btn.classList.add('active');
       }
     });
-
-    this.updateProgress();
     this.saveToStorage();
   }
 
@@ -428,19 +413,15 @@ class CashReconciliationApp {
     const ind = document.getElementById('differenceIndicator');
     const status = document.getElementById('differenceStatus');
     if (Math.abs(diff) < 0.01) {
-      ind.className = 'difference-card balanced';
+      ind.className = 'difference-indicator balanced';
       status.textContent = 'Balanced';
     } else if (diff < 0) {
-      ind.className = 'difference-card shortage';
+      ind.className = 'difference-indicator shortage';
       status.textContent = `Cash Short by SAR ${Math.abs(diff).toFixed(2)}`;
     } else {
-      ind.className = 'difference-card excess';
+      ind.className = 'difference-indicator excess';
       status.textContent = `Cash Over by SAR ${diff.toFixed(2)}`;
     }
-
-    // Update sticky summary and progress
-    this.updateStickySummary();
-    this.updateProgress();
   }
 
   async saveData() {
@@ -661,273 +642,7 @@ this.handleDiscountChange(); // ensures expected cash refreshes
     else if (status === 'disconnected') text.textContent = 'Offline';
     else if (status === 'syncing') text.textContent = 'Syncing...';
   }
-
-  // ========== NEW FEATURES FOR REDESIGN ==========
-
-  // Filter products by search query and sold-only toggle
-  filterProducts() {
-    const searchTerm = document.getElementById('productSearch').value.toLowerCase();
-    const soldOnly = document.getElementById('toggleSoldOnly').checked;
-
-    document.querySelectorAll('#salesTableBody tr').forEach(tr => {
-      const code = tr.getAttribute('data-code');
-      const category = tr.cells[0]?.textContent.toLowerCase() || '';
-      const name = tr.cells[2]?.textContent.toLowerCase() || '';
-      const qty = this.toNum(document.getElementById(`qty_${code}`)?.value || 0);
-
-      // Check if matches search term (code, category, or name)
-      const matchesSearch = !searchTerm ||
-                           code.toLowerCase().includes(searchTerm) ||
-                           category.includes(searchTerm) ||
-                           name.includes(searchTerm);
-
-      // Check if matches sold filter
-      const matchesSold = !soldOnly || qty > 0;
-
-      // Show row only if it matches both filters
-      tr.style.display = (matchesSearch && matchesSold) ? '' : 'none';
-    });
-  }
-
-  // Toggle collapsible sections
-  toggleSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    const icon = document.getElementById(sectionId + 'Icon');
-
-    if (section.classList.contains('collapsed')) {
-      section.classList.remove('collapsed');
-      if (icon) icon.textContent = '▼';
-    } else {
-      section.classList.add('collapsed');
-      if (icon) icon.textContent = '▶';
-    }
-  }
-
-  // Quick add buttons for denominations
-  quickAdd(denomId, count) {
-    const input = document.getElementById(denomId);
-    if (!input) return;
-
-    const currentValue = this.toNum(input.value);
-    const newValue = Math.max(0, currentValue + count); // Don't go below 0
-    input.value = newValue;
-
-    // Trigger the appropriate calculation
-    if (denomId.startsWith('note')) {
-      this.calculateCashNotes();
-    } else if (denomId.startsWith('coin')) {
-      this.calculateCoins();
-    }
-  }
-
-  // Clear individual denomination
-  clearDenom(denomId) {
-    const input = document.getElementById(denomId);
-    if (!input) return;
-
-    input.value = 0;
-
-    // Trigger the appropriate calculation
-    if (denomId.startsWith('note')) {
-      this.calculateCashNotes();
-    } else if (denomId.startsWith('coin')) {
-      this.calculateCoins();
-    }
-  }
-
-  // Setup keyboard shortcuts
-  setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-      // Ctrl+S = Save
-      if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        this.saveData();
-      }
-
-      // Ctrl+F = Focus search
-      if (e.ctrlKey && e.key === 'f') {
-        e.preventDefault();
-        const searchBox = document.getElementById('productSearch');
-        if (searchBox) {
-          searchBox.focus();
-          searchBox.select();
-        }
-      }
-
-      // F2 = Fetch from inventory
-      if (e.key === 'F2') {
-        e.preventDefault();
-        this.fetchInventoryData();
-      }
-
-      // Escape = Clear search (if search box is focused)
-      if (e.key === 'Escape') {
-        const searchBox = document.getElementById('productSearch');
-        if (document.activeElement === searchBox) {
-          searchBox.value = '';
-          this.filterProducts();
-        }
-      }
-    });
-  }
-
-  // Update progress tracker
-  updateProgress() {
-    const routeName = this.getValue('routeName') || this.getValue('selectedRoute');
-    const salesDate = this.getValue('salesDate');
-    const totalSales = this.toNum(this.getValue('totalSalesValue'));
-    const actualCash = this.toNum(this.getValue('actualCashTotal'));
-    const expected = this.toNum(this.getValue('expectedCashBalance'));
-    const diff = Math.abs(actualCash - expected);
-
-    const steps = document.querySelectorAll('.progress-step');
-
-    // Step 1: Route selected
-    if (routeName) {
-      steps[0]?.classList.add('completed');
-      steps[1]?.classList.add('active');
-    } else {
-      steps[0]?.classList.remove('completed');
-      steps[1]?.classList.remove('active');
-    }
-
-    // Step 2: Sales entered
-    if (totalSales > 0) {
-      steps[1]?.classList.add('completed');
-      steps[2]?.classList.add('active');
-    } else {
-      steps[1]?.classList.remove('completed');
-      steps[2]?.classList.remove('active');
-    }
-
-    // Step 3: Cash counted
-    if (actualCash > 0) {
-      steps[2]?.classList.add('completed');
-      steps[3]?.classList.add('active');
-    } else {
-      steps[2]?.classList.remove('completed');
-      steps[3]?.classList.remove('active');
-    }
-
-    // Step 4: Balanced
-    if (diff < 0.01 && actualCash > 0) {
-      steps[3]?.classList.add('completed');
-    } else {
-      steps[3]?.classList.remove('completed');
-    }
-  }
-
-  // Update sticky summary header
-  updateStickySummary() {
-    const totalSales = this.toNum(this.getValue('totalSalesValue'));
-    const expected = this.toNum(this.getValue('expectedCashBalance'));
-    const actual = this.toNum(this.getValue('actualCashTotal'));
-    const diff = actual - expected;
-
-    this.setText('stickyTotalSales', `SAR ${totalSales.toFixed(2)}`);
-    this.setText('stickyExpectedCash', `SAR ${expected.toFixed(2)}`);
-    this.setText('stickyActualCash', `SAR ${actual.toFixed(2)}`);
-    this.setText('stickyDifference', `SAR ${diff.toFixed(2)}`);
-
-    // Update color based on difference
-    const diffItem = document.getElementById('stickyDifferenceItem');
-    if (Math.abs(diff) < 0.01) {
-      diffItem.className = 'summary-item difference balanced';
-    } else if (diff < 0) {
-      diffItem.className = 'summary-item difference shortage';
-    } else {
-      diffItem.className = 'summary-item difference excess';
-    }
-
-    // Also update bottom summary
-    this.setText('summaryExpectedCash', `SAR ${expected.toFixed(2)}`);
-    this.setText('summaryActualCash', `SAR ${actual.toFixed(2)}`);
-    this.setText('summaryDifference', `SAR ${diff.toFixed(2)}`);
-  }
-
-  // Load yesterday's cash flow data
-  loadYesterdayCashFlow() {
-    const currentDate = this.getValue('salesDate');
-    if (!currentDate) {
-      this.showStatus('Please select a date first!', 'error');
-      return;
-    }
-
-    // This is a placeholder - in production, you'd fetch from backend
-    this.showStatus('Yesterday\'s cash flow would be loaded here', 'info');
-
-    // For now, just clear payment methods but keep sales data
-    ['discountBase', 'discountWithVAT', 'creditSales', 'creditRepayment',
-     'bankPOS', 'bankTransfer', 'cheque'].forEach(id => this.setValue(id, '0'));
-
-    this.calculateCashBalance();
-  }
-
-  // Initialize charts (called after DOM is ready)
-  initCharts() {
-    // Week chart - placeholder data
-    const weekCtx = document.getElementById('weekChart');
-    if (weekCtx && typeof Chart !== 'undefined') {
-      new Chart(weekCtx, {
-        type: 'line',
-        data: {
-          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-          datasets: [{
-            label: 'Daily Sales (SAR)',
-            data: [0, 0, 0, 0, 0, 0, 0], // Placeholder
-            borderColor: '#667eea',
-            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-            tension: 0.4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
-      });
-      this.setText('weekSummary', 'Historical data will appear here');
-    }
-
-    // Category chart - placeholder
-    const catCtx = document.getElementById('categoryChart');
-    if (catCtx && typeof Chart !== 'undefined') {
-      new Chart(catCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Sunflower Seeds', 'Pumpkin Seeds', 'Melon Seeds', 'Popcorn'],
-          datasets: [{
-            data: [0, 0, 0, 0], // Placeholder
-            backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#4facfe']
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom' }
-          }
-        }
-      });
-      this.setText('categorySummary', 'Category breakdown from today\'s sales');
-    }
-  }
 }
 
 const app = new CashReconciliationApp();
-document.addEventListener('DOMContentLoaded', () => {
-  app.init();
-  app.setupKeyboardShortcuts();
-
-  // Initialize charts after a short delay to ensure Chart.js is loaded
-  setTimeout(() => {
-    if (typeof Chart !== 'undefined') {
-      app.initCharts();
-    }
-  }, 500);
-});
+document.addEventListener('DOMContentLoaded', () => app.init());
