@@ -1,6 +1,6 @@
 // sw.js - Service Worker
-const CACHE_NAME = 'cash-recon-v3';
-const PRECACHE_URLS = ['/', '/index.html'];
+const CACHE_NAME = 'cash-recon-v4';
+const PRECACHE_URLS = ['/', '/index.html', '/app.js', '/styles.css', '/config.js'];
 
 // Install: pre-cache essentials
 self.addEventListener('install', event => {
@@ -25,7 +25,11 @@ self.addEventListener('fetch', event => {
     return event.respondWith(
       fetch(request)
         .then(res => {
-          caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
+          // Clone before consuming
+          const responseClone = res.clone();
+          // Cache the clone asynchronously (don't await)
+          caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone));
+          // Return the original response
           return res;
         })
         .catch(() => caches.match(request))
@@ -34,12 +38,20 @@ self.addEventListener('fetch', event => {
 
   // Cache-first for static assets
   event.respondWith(
-    caches.match(request).then(cached =>
-      cached || fetch(request).then(res => {
-        caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
+    caches.match(request).then(cached => {
+      if (cached) {
+        return cached;
+      }
+
+      return fetch(request).then(res => {
+        // Clone FIRST before any consumption
+        const responseClone = res.clone();
+        // Cache the clone asynchronously
+        caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone));
+        // Return original
         return res;
-      })
-    )
+      });
+    })
   );
 });
 
