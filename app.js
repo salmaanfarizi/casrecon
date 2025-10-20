@@ -303,6 +303,41 @@ class CashReconciliationApp {
 
       console.log('Backend response:', json);
 
+      // Log debug information if available
+      if (json.metadata?.debug) {
+        console.group('🔍 Backend Debug Info');
+        console.log('Sheet:', json.metadata.debug.sheetName);
+        console.log('Total rows in sheet:', json.metadata.debug.totalRows);
+        console.log('Headers found:', json.metadata.debug.headersFound);
+        console.log('Column indices:', json.metadata.debug.columnIndices);
+        console.log('Available dates in sheet:', json.metadata.debug.availableDates);
+        console.log('Dates with inventory data:', json.metadata.debug.datesInInventory);
+        console.log('Products on current date:', json.metadata.debug.currentInventoryProducts);
+        console.log('Products on previous date:', json.metadata.debug.previousInventoryProducts);
+        console.log('Total unique products:', json.metadata.debug.totalUniqueProducts);
+        console.log('Sales data items returned:', json.metadata.debug.salesDataCount);
+        console.groupEnd();
+      }
+
+      // Log error debug info if available
+      if (json.status === 'error' && json.debug) {
+        console.group('❌ Backend Error Debug Info');
+        console.log('Sheet:', json.debug.sheetName);
+        console.log('Spreadsheet ID:', json.debug.spreadsheetId);
+        console.log('Total rows:', json.debug.totalRows);
+        console.log('Headers found:', json.debug.headersFound);
+        console.log('Expected headers:', json.debug.expectedHeaders);
+        console.log('Column indices:', {
+          date: json.debug.dateColumnIndex,
+          code: json.debug.codeColumnIndex,
+          opening: json.debug.openingColumnIndex,
+          purchases: json.debug.purchasesColumnIndex,
+          closing: json.debug.closingColumnIndex,
+          transfer: json.debug.transferColumnIndex
+        });
+        console.groupEnd();
+      }
+
       if (json.status === 'success' && Array.isArray(json.data)) {
         this.populateSalesDataFromCalc(json.data);
 
