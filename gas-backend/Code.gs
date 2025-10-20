@@ -23,7 +23,8 @@ const SHEET_IDS = {
   INVENTORY_SOURCE: 'YOUR_INVENTORY_SHEET_ID_HERE',
 
   // Destination sheet (managed by Cash App)
-  CASH_DESTINATION: 'YOUR_CASH_RECONCILIATION_SHEET_ID_HERE',
+  // YOUR CASH APP SHEET ID: 1hLGPDXqyhfyBGAt1g-Jl3Tmc3g3YASjkH47cm_Rx414
+  CASH_DESTINATION: '1hLGPDXqyhfyBGAt1g-Jl3Tmc3g3YASjkH47cm_Rx414',
 
   // Product catalog sheet (can be in either workbook)
   CATALOG: 'YOUR_CATALOG_SHEET_ID_HERE'
@@ -40,9 +41,10 @@ const SHEET_NAMES = {
   },
 
   // Tab names in the Cash Destination Sheet
-  CASH_RECON: 'Cash Reconciliation',
-  CASH_TRANSACTIONS: 'Transactions',
-  CASH_DENOMINATIONS: 'Cash Denominations',
+  // IMPORTANT: These match your existing sheet tab names
+  CASH_RECON: 'CASH_RECONCILIATION',    // Your existing tab (no spaces)
+  CASH_TRANSACTIONS: 'Transactions',     // Will be created by migration
+  CASH_DENOMINATIONS: 'CASH_DENOMINATIONS',  // Your existing tab (no spaces)
 
   // Catalog tabs
   CATALOG: 'Product Catalog'
@@ -376,16 +378,30 @@ function saveCashReconciliation(payload) {
 function saveReconciliationRecord(ss, payload) {
   let sheet = ss.getSheetByName(SHEET_NAMES.CASH_RECON);
 
-  // Create sheet if it doesn't exist
+  // Calculate status based on difference
+  const difference = payload.difference || 0;
+  let status = 'BALANCED';
+  if (Math.abs(difference) < 0.01) {
+    status = 'BALANCED';
+  } else if (difference < 0) {
+    status = 'SHORTAGE';
+  } else {
+    status = 'EXCESS';
+  }
+
+  // Check if sheet exists and has the correct structure
   if (!sheet) {
+    // Sheet doesn't exist - should not happen after migration
+    Logger.log('WARNING: CASH_RECONCILIATION sheet not found. Creating new one.');
     sheet = ss.insertSheet(SHEET_NAMES.CASH_RECON);
     sheet.appendRow([
       'Timestamp',
       'Date',
+      'Time',
       'Route',
       'Total Sales',
-      'Discount Base',
-      'Discount with VAT',
+      'Discount (Base)',
+      'Discount (+15%)',
       'Credit Sales',
       'Credit Repayment',
       'Bank POS',
@@ -396,28 +412,33 @@ function saveReconciliationRecord(ss, payload) {
       'Coins',
       'Actual Cash',
       'Difference',
-      'Items Sold Count'
+      'Status'
     ]);
   }
 
+  // Create timestamp and extract time
+  const timestampObj = new Date(payload.timestamp || new Date());
+  const timeOnly = Utilities.formatDate(timestampObj, 'GMT+3', 'HH:mm:ss');
+
   const row = [
-    payload.timestamp || new Date().toISOString(),
-    payload.date,
-    payload.route,
-    payload.totalSales || 0,
-    payload.discountBase || 0,
-    payload.discountWithVAT || 0,
-    payload.creditSales || 0,
-    payload.creditRepayment || 0,
-    payload.bankPOS || 0,
-    payload.bankTransfer || 0,
-    payload.cheque || 0,
-    payload.expectedCash || 0,
-    (payload.cashNotes && payload.cashNotes.total) || 0,
-    payload.coins || 0,
-    payload.actualCash || 0,
-    payload.difference || 0,
-    (payload.salesItems && payload.salesItems.length) || 0
+    timestampObj,                          // Timestamp
+    payload.date,                          // Date
+    timeOnly,                              // Time
+    payload.route,                         // Route
+    payload.totalSales || 0,               // Total Sales
+    payload.discountBase || 0,             // Discount (Base)
+    payload.discountWithVAT || 0,          // Discount (+15%)
+    payload.creditSales || 0,              // Credit Sales
+    payload.creditRepayment || 0,          // Credit Repayment
+    payload.bankPOS || 0,                  // Bank POS
+    payload.bankTransfer || 0,             // Bank Transfer
+    payload.cheque || 0,                   // Cheque
+    payload.expectedCash || 0,             // Expected Cash
+    (payload.cashNotes && payload.cashNotes.total) || 0,  // Cash Notes
+    payload.coins || 0,                    // Coins
+    payload.actualCash || 0,               // Actual Cash
+    difference,                            // Difference
+    status                                 // Status
   ];
 
   sheet.appendRow(row);
@@ -466,49 +487,50 @@ function saveTransactions(ss, payload) {
 function saveCashDenominations(ss, payload) {
   let sheet = ss.getSheetByName(SHEET_NAMES.CASH_DENOMINATIONS);
 
-  // Create sheet if it doesn't exist
+  // Create sheet if it doesn't exist (should not happen after migration)
   if (!sheet) {
+    Logger.log('WARNING: CASH_DENOMINATIONS sheet not found. Creating new one.');
     sheet = ss.insertSheet(SHEET_NAMES.CASH_DENOMINATIONS);
     sheet.appendRow([
       'Timestamp',
       'Date',
       'Route',
-      '500 SAR',
-      '100 SAR',
-      '50 SAR',
-      '20 SAR',
-      '10 SAR',
-      '5 SAR',
-      '2 SAR',
-      '1 SAR',
-      '0.50 SAR',
-      '0.25 SAR',
-      'Total Notes',
-      'Total Coins',
-      'Total Cash'
+      'SAR 500',        // Match existing format
+      'SAR 100',
+      'SAR 50',
+      'SAR 20',
+      'SAR 10',
+      'SAR 5',
+      'Notes Total',    // Match existing format
+      'SAR 2',
+      'SAR 1',
+      'SAR 0.50',
+      'SAR 0.25',
+      'Coins Total',    // Match existing format
+      'Grand Total'     // Match existing format
     ]);
   }
 
-  const timestamp = payload.timestamp || new Date().toISOString();
+  const timestampObj = new Date(payload.timestamp || new Date());
   const denoms = (payload.cashNotes && payload.cashNotes.denominations) || {};
 
   const row = [
-    timestamp,
-    payload.date,
-    payload.route,
-    denoms['500'] || 0,
-    denoms['100'] || 0,
-    denoms['50'] || 0,
-    denoms['20'] || 0,
-    denoms['10'] || 0,
-    denoms['5'] || 0,
-    denoms['2'] || 0,
-    denoms['1'] || 0,
-    denoms['0.50'] || 0,
-    denoms['0.25'] || 0,
-    (payload.cashNotes && payload.cashNotes.total) || 0,
-    payload.coins || 0,
-    payload.actualCash || 0
+    timestampObj,                          // Timestamp
+    payload.date,                          // Date
+    payload.route,                         // Route
+    denoms['500'] || 0,                    // SAR 500
+    denoms['100'] || 0,                    // SAR 100
+    denoms['50'] || 0,                     // SAR 50
+    denoms['20'] || 0,                     // SAR 20
+    denoms['10'] || 0,                     // SAR 10
+    denoms['5'] || 0,                      // SAR 5
+    (payload.cashNotes && payload.cashNotes.total) || 0,  // Notes Total
+    denoms['2'] || 0,                      // SAR 2
+    denoms['1'] || 0,                      // SAR 1
+    denoms['0.50'] || 0,                   // SAR 0.50
+    denoms['0.25'] || 0,                   // SAR 0.25
+    payload.coins || 0,                    // Coins Total
+    payload.actualCash || 0                // Grand Total
   ];
 
   sheet.appendRow(row);
