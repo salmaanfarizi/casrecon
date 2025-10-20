@@ -20,14 +20,13 @@
 
 const SHEET_IDS = {
   // Source sheet (managed by Inventory App)
-  INVENTORY_SOURCE: 'YOUR_INVENTORY_SHEET_ID_HERE',
+  INVENTORY_SOURCE: '1o3rmIC2mSUAS-0d0-w62mDDHGzJznHf9qEjcHoyZEX0',
 
   // Destination sheet (managed by Cash App)
-  // YOUR CASH APP SHEET ID: 1hLGPDXqyhfyBGAt1g-Jl3Tmc3g3YASjkH47cm_Rx414
   CASH_DESTINATION: '1hLGPDXqyhfyBGAt1g-Jl3Tmc3g3YASjkH47cm_Rx414',
 
-  // Product catalog sheet (can be in either workbook)
-  CATALOG: 'YOUR_CATALOG_SHEET_ID_HERE'
+  // Product catalog sheet (using inventory source for catalog)
+  CATALOG: '1o3rmIC2mSUAS-0d0-w62mDDHGzJznHf9qEjcHoyZEX0'
 };
 
 const SHEET_NAMES = {
