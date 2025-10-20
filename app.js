@@ -93,14 +93,6 @@ class CashReconciliationApp {
     }
   }
 
-  // Handle route selection from dropdown
-  handleRouteChange() {
-    const routeName = this.getValue('routeName');
-    if (routeName) {
-      this.selectRoute(routeName);
-    }
-  }
-
   selectRoute(route) {
     this.currentRoute = route;
 
