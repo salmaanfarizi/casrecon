@@ -277,7 +277,13 @@ class CashReconciliationApp {
       });
       if (json.status === 'success' && Array.isArray(json.data)) {
         this.populateSalesDataFromCalc(json.data);
-        this.showStatus('Sales data calculated from inventory!', 'success');
+
+        // Show which date was actually used for calculation
+        const message = json.metadata?.message
+          ? `Sales calculated! ${json.metadata.message}`
+          : 'Sales data calculated from inventory!';
+
+        this.showStatus(message, 'success');
       } else {
         this.showStatus('No inventory data found for calculation', 'error');
       }

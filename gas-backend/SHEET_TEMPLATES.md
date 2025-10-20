@@ -17,23 +17,32 @@ This document provides copy-paste templates for setting up your Google Sheets.
 
 ### Header Row for Each Tab:
 ```
-Date | Code | Product Name | Opening Stock | Purchases | Closing Stock
+Date | Code | Product Name | Opening Stock | Purchases | Stock Transfer | Closing Stock
 ```
 
 ### Example Data:
 ```
-2025-10-19 | 4402 | Sunflower Seeds 200g | 100 | 50  | 80
-2025-10-19 | 4401 | Sunflower Seeds 100g | 75  | 0   | 55
-2025-10-19 | 1129 | Sunflower Seeds 25g  | 200 | 100 | 150
-2025-10-20 | 4402 | Sunflower Seeds 200g | 80  | 100 | 110
-2025-10-20 | 4401 | Sunflower Seeds 100g | 55  | 50  | 75
+2025-10-17 | 4402 | Sunflower Seeds 200g | 100 | 50  | 20 | 130
+2025-10-17 | 4401 | Sunflower Seeds 100g | 75  | 0   | 10 | 65
+2025-10-20 | 4402 | Sunflower Seeds 200g | 0   | 100 | 0  | 120
+2025-10-20 | 4401 | Sunflower Seeds 100g | 0   | 50  | 0  | 85
 ```
 
 ### Important Notes:
 - **Date format**: YYYY-MM-DD
 - **Code**: Must match SKU codes in Product Catalog
-- **Sales Calculation**: Opening + Purchases - Closing
-  - Example Row 4: 80 + 100 - 110 = **70 units sold**
+- **Stock Transfer**: Optional column (defaults to 0 if not present)
+- **Sales Calculation**: Previous Closing + Previous Transfer + Current Purchases - Current Closing
+  - Example for Oct 20, Code 4402:
+    - Previous (Oct 17) Closing: 130
+    - Previous (Oct 17) Transfer: 0
+    - Current (Oct 20) Purchases: 100
+    - Current (Oct 20) Closing: 120
+    - **Sales = 130 + 0 + 100 - 120 = 110 units sold**
+
+**Smart Gap Handling**:
+- If Oct 18-19 have no data (weekend), the system automatically uses Oct 17 as "previous day"
+- You'll see: "Using data from 2025-10-17 (3 days ago)"
 
 ---
 

@@ -261,6 +261,7 @@ function calculateSalesFromInventory(payload) {
     const openingIdx = headers.indexOf('Opening Stock');
     const purchasesIdx = headers.indexOf('Purchases');
     const closingIdx = headers.indexOf('Closing Stock');
+    const transferIdx = headers.indexOf('Stock Transfer'); // Add support for stock transfer
 
     if (dateIdx === -1 || codeIdx === -1) {
       return {
@@ -269,13 +270,33 @@ function calculateSalesFromInventory(payload) {
       };
     }
 
-    // Parse dates for comparison
-    const prevDateObj = new Date(previousDate);
     const currDateObj = new Date(currentDate);
+    const currDateStr = currDateObj.toISOString().split('T')[0];
 
-    const inventory = {};
+    // Step 1: Find all unique dates in the sheet that are BEFORE currentDate
+    const availableDates = new Set();
+    for (let i = 1; i < data.length; i++) {
+      const rowDate = new Date(data[i][dateIdx]);
+      const dateStr = rowDate.toISOString().split('T')[0];
 
-    // Collect inventory data
+      if (rowDate < currDateObj) {
+        availableDates.add(dateStr);
+      }
+    }
+
+    // Step 2: Find the LAST available date before currentDate
+    let lastAvailableDate = null;
+    if (availableDates.size > 0) {
+      const sortedDates = Array.from(availableDates).sort().reverse();
+      lastAvailableDate = sortedDates[0]; // Most recent date before currentDate
+    }
+
+    Logger.log('Current Date: ' + currDateStr);
+    Logger.log('Last Available Date (with data): ' + lastAvailableDate);
+
+    // Step 3: Collect inventory data by date
+    const inventoryByDate = {};
+
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
       const rowDate = new Date(row[dateIdx]);
@@ -284,55 +305,78 @@ function calculateSalesFromInventory(payload) {
       if (!code) continue;
 
       const dateStr = rowDate.toISOString().split('T')[0];
-      const prevStr = prevDateObj.toISOString().split('T')[0];
-      const currStr = currDateObj.toISOString().split('T')[0];
 
-      if (!inventory[code]) {
-        inventory[code] = {
+      if (!inventoryByDate[dateStr]) {
+        inventoryByDate[dateStr] = {};
+      }
+
+      if (!inventoryByDate[dateStr][code]) {
+        inventoryByDate[dateStr][code] = {
           code: code,
-          previousClosing: 0,
-          currentOpening: 0,
-          currentPurchases: 0,
-          currentClosing: 0
+          opening: 0,
+          purchases: 0,
+          transfer: 0,
+          closing: 0
         };
       }
 
-      if (dateStr === prevStr) {
-        inventory[code].previousClosing = Number(row[closingIdx] || 0);
-      }
-
-      if (dateStr === currStr) {
-        inventory[code].currentOpening = Number(row[openingIdx] || 0);
-        inventory[code].currentPurchases = Number(row[purchasesIdx] || 0);
-        inventory[code].currentClosing = Number(row[closingIdx] || 0);
-      }
+      inventoryByDate[dateStr][code] = {
+        code: code,
+        opening: Number(row[openingIdx] || 0),
+        purchases: Number(row[purchasesIdx] || 0),
+        transfer: transferIdx !== -1 ? Number(row[transferIdx] || 0) : 0,
+        closing: Number(row[closingIdx] || 0)
+      };
     }
 
-    // Calculate sales: Opening + Purchases - Closing
+    // Step 4: Calculate sales for current date
+    // Formula: Previous Day Closing + Previous Day Transfer + Current Day Purchases - Current Day Closing
     const salesData = [];
+    const currentInventory = inventoryByDate[currDateStr] || {};
+    const previousInventory = lastAvailableDate ? inventoryByDate[lastAvailableDate] : {};
 
-    for (const code in inventory) {
-      const item = inventory[code];
-      const opening = item.currentOpening || item.previousClosing;
-      const purchases = item.currentPurchases;
-      const closing = item.currentClosing;
+    // Get all unique product codes from both dates
+    const allCodes = new Set([
+      ...Object.keys(currentInventory),
+      ...Object.keys(previousInventory)
+    ]);
 
-      const salesQty = opening + purchases - closing;
+    for (const code of allCodes) {
+      const current = currentInventory[code] || { opening: 0, purchases: 0, transfer: 0, closing: 0 };
+      const previous = previousInventory[code] || { opening: 0, purchases: 0, transfer: 0, closing: 0 };
 
-      if (salesQty > 0) {
+      // Sales = Previous Closing + Previous Transfer + Current Purchases - Current Closing
+      const prevClosing = previous.closing;
+      const prevTransfer = previous.transfer;
+      const currPurchases = current.purchases;
+      const currClosing = current.closing;
+
+      const salesQty = prevClosing + prevTransfer + currPurchases - currClosing;
+
+      if (salesQty > 0 || salesQty < 0) { // Include negative sales (returns/adjustments)
         salesData.push({
           code: code,
           salesQty: salesQty,
-          opening: opening,
-          purchases: purchases,
-          closing: closing
+          previousClosing: prevClosing,
+          previousTransfer: prevTransfer,
+          currentPurchases: currPurchases,
+          currentClosing: currClosing,
+          lastDataDate: lastAvailableDate || 'N/A'
         });
       }
     }
 
     return {
       status: 'success',
-      data: salesData
+      data: salesData,
+      metadata: {
+        currentDate: currDateStr,
+        lastAvailableDate: lastAvailableDate,
+        daysGap: lastAvailableDate ? Math.floor((currDateObj - new Date(lastAvailableDate)) / (1000 * 60 * 60 * 24)) : null,
+        message: lastAvailableDate
+          ? `Using data from ${lastAvailableDate} (${Math.floor((currDateObj - new Date(lastAvailableDate)) / (1000 * 60 * 60 * 24))} days ago)`
+          : 'No previous data found'
+      }
     };
 
   } catch (error) {
