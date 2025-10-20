@@ -1,5 +1,5 @@
 // sw.js - Service Worker
-const CACHE_NAME = 'cash-recon-v4';
+const CACHE_NAME = 'cash-recon-v5';
 const PRECACHE_URLS = ['/', '/index.html', '/app.js', '/styles.css', '/config.js'];
 
 // Install: pre-cache essentials
@@ -20,8 +20,11 @@ self.addEventListener('fetch', event => {
     return event.respondWith(fetch(request));
   }
 
-  // Network-first for documents (HTML)
-  if (request.destination === 'document') {
+  // Network-first for HTML and JS files (always get latest)
+  if (request.destination === 'document' ||
+      request.destination === 'script' ||
+      url.pathname.endsWith('.js') ||
+      url.pathname.endsWith('.html')) {
     return event.respondWith(
       fetch(request)
         .then(res => {
@@ -36,7 +39,7 @@ self.addEventListener('fetch', event => {
     );
   }
 
-  // Cache-first for static assets
+  // Cache-first for CSS and other static assets
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) {
