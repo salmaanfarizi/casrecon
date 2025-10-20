@@ -2,280 +2,549 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Cash Reconciliation & Sales System</title>
-  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Daily Cash Reconciliation Tool">
+  <meta name="theme-color" content="#667eea">
+  <title>Cash Reconciliation</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>💰 Daily Cash Reconciliation & Sales</h1>
-      <p>Sales tracking and cash balance verification system</p>
-      <div class="app-badge">ACCOUNTS</div>
+  <div class="app-container">
+
+    <!-- ========== STICKY SUMMARY HEADER ========== -->
+    <div class="summary-sticky" id="summarySticky">
+      <div class="summary-item">
+        <span class="summary-label">Total Sales</span>
+        <strong class="summary-value" id="stickyTotalSales">SAR 0.00</strong>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Expected Cash</span>
+        <strong class="summary-value" id="stickyExpectedCash">SAR 0.00</strong>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Actual Cash</span>
+        <strong class="summary-value" id="stickyActualCash">SAR 0.00</strong>
+      </div>
+      <div class="summary-item difference" id="stickyDifferenceItem">
+        <span class="summary-label">Difference</span>
+        <strong class="summary-value" id="stickyDifference">SAR 0.00</strong>
+      </div>
     </div>
 
-    <div class="route-section">
-      <div class="route-grid">
-        <button class="route-btn" onclick="app.selectRoute('Al-Hasa 1')">Al-Hasa 1</button>
-        <button class="route-btn" onclick="app.selectRoute('Al-Hasa 2')">Al-Hasa 2</button>
-        <button class="route-btn" onclick="app.selectRoute('Al-Hasa 3')">Al-Hasa 3</button>
-        <button class="route-btn" onclick="app.selectRoute('Al-Hasa 4')">Al-Hasa 4</button>
-        <button class="route-btn" onclick="app.selectRoute('Al-Hasa Wholesale')">Wholesale</button>
+    <!-- ========== MAIN HEADER ========== -->
+    <header class="app-header">
+      <h1>Cash Reconciliation</h1>
+      <div class="keyboard-hints">
+        <span class="hint"><kbd>Ctrl+S</kbd> Save</span>
+        <span class="hint"><kbd>Ctrl+F</kbd> Search</span>
+        <span class="hint"><kbd>F2</kbd> Fetch</span>
       </div>
-      <div class="date-info">
-        <input type="date" class="date-input" id="salesDate">
-        <div class="info-display">
-          Route: <strong id="selectedRoute">Not Selected</strong>
+    </header>
+
+    <!-- ========== PROGRESS TRACKER ========== -->
+    <div class="progress-tracker">
+      <div class="progress-step active" data-step="1">
+        <div class="step-circle">1</div>
+        <div class="step-label">Route</div>
+      </div>
+      <div class="progress-connector"></div>
+      <div class="progress-step" data-step="2">
+        <div class="step-circle">2</div>
+        <div class="step-label">Sales</div>
+      </div>
+      <div class="progress-connector"></div>
+      <div class="progress-step" data-step="3">
+        <div class="step-circle">3</div>
+        <div class="step-label">Cash</div>
+      </div>
+      <div class="progress-connector"></div>
+      <div class="progress-step" data-step="4">
+        <div class="step-circle">4</div>
+        <div class="step-label">Balanced</div>
+      </div>
+    </div>
+
+    <!-- ========== ROUTE SELECTION & QUICK ACTIONS ========== -->
+    <section class="section-card">
+      <h2 class="section-title">Route & Date</h2>
+      <div class="grid-2">
+        <div class="input-group">
+          <label class="input-label" for="routeName">Route Name</label>
+          <select id="routeName" class="input-field" onchange="app.updateProgress()">
+            <option value="">-- Select Route --</option>
+            <option value="Al-Hasa 1">Al-Hasa 1</option>
+            <option value="Al-Hasa 2">Al-Hasa 2</option>
+            <option value="Al-Hasa 3">Al-Hasa 3</option>
+            <option value="Al-Hasa 4">Al-Hasa 4</option>
+            <option value="Al-Hasa Wholesale">Al-Hasa Wholesale</option>
+          </select>
         </div>
-      </div>
-      <button class="btn btn-warning" onclick="app.fetchInventoryData()" id="fetchBtn" style="margin-top:15px;width:100%;">
-        🔄 Auto-Calculate Sales from Inventory
-      </button>
-    </div>
-
-    <div class="content">
-      <div id="statusMessage" class="status-message"></div>
-
-      <div class="sales-section">
-        <h3 class="section-title">📦 Sales Items</h3>
-        <div style="display:flex;gap:12px;align-items:center;margin:8px 0 12px">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <input type="checkbox" id="toggleSoldOnly" />
-            <span>Show only sold items</span>
-          </label>
-          <span style="font-size:12px;color:#6b7280">Sold SKUs: <b id="soldCount">0</b></span>
-          <span id="catalogStatus" style="margin-left:auto;font-size:12px;color:#6b7280">Catalog: loading…</span>
-        </div>
-        <table class="sales-table">
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th>Code</th>
-              <th>Item</th>
-              <th>Unit</th>
-              <th>Price (SAR)</th>
-              <th>Qty Sold</th>
-              <th>Total (SAR)</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="salesTableBody"></tbody>
-          <tfoot>
-            <tr style="background:#f3f4f6;font-weight:bold;">
-              <td colspan="6" style="text-align:right;">Total Sales Value:</td>
-              <td id="totalSalesDisplay">SAR 0.00</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div class="grid-2" style="margin-top:30px;">
-        <div class="section-card">
-          <h3 class="section-title">💳 Payment Methods</h3>
-
-          <div class="input-group">
-            <label class="input-label">Total Sales Value</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">SAR</span>
-              <input type="number" class="input-field result-field" id="totalSalesValue" readonly>
-            </div>
-          </div>
-          <!-- (-) Discount -->
-<div class="input-group">
-  <label class="input-label">(-) Discount</label>
-  <div class="input-wrapper" style="gap:10px; flex-wrap:wrap">
-    <!-- Base the user types -->
-    <span class="currency-prefix">SAR</span>
-    <input type="number" class="input-field negative" id="discountBase" step="0.01"
-           placeholder="0.00" onchange="app.handleDiscountChange()" oninput="app.handleDiscountChange()">
-
-    <!-- Auto: base + 15% -->
-    <span style="font-size:12px;color:#6b7280;">incl. 15%</span>
-    <span class="currency-prefix">SAR</span>
-    <input type="number" class="input-field result-field" id="discountWithVAT" step="0.01"
-           placeholder="0.00" readonly>
-  </div>
-</div>
-
-
-          <div class="input-group">
-            <label class="input-label">(-) Credit Sales</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">SAR</span>
-              <input type="number" class="input-field negative" id="creditSales" step="0.01" placeholder="0.00" onchange="app.calculateCashBalance()">
-            </div>
-          </div>
-
-          <div class="input-group">
-            <label class="input-label">(+) Credit Repayment</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">SAR</span>
-              <input type="number" class="input-field positive" id="creditRepayment" step="0.01" placeholder="0.00" onchange="app.calculateCashBalance()">
-            </div>
-          </div>
-
-          <div class="input-group">
-            <label class="input-label">(-) Bank POS</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">SAR</span>
-              <input type="number" class="input-field negative" id="bankPOS" step="0.01" placeholder="0.00" onchange="app.calculateCashBalance()">
-            </div>
-          </div>
-
-          <div class="input-group">
-            <label class="input-label">(-) Bank Transfer</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">SAR</span>
-              <input type="number" class="input-field negative" id="bankTransfer" step="0.01" placeholder="0.00" onchange="app.calculateCashBalance()">
-            </div>
-          </div>
-
-          <div class="input-group">
-            <label class="input-label">(-) Cheque</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">SAR</span>
-              <input type="number" class="input-field negative" id="cheque" step="0.01" placeholder="0.00" onchange="app.calculateCashBalance()">
-            </div>
-          </div>
-
-          <div class="input-group" style="background:#f0fdf4;padding:12px;border-radius:8px;margin-top:10px;">
-            <label class="input-label" style="font-size:16px;">Expected Cash Balance</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix" style="font-size:16px;">SAR</span>
-              <input type="number" class="input-field result-field" id="expectedCashBalance" readonly style="font-size:16px;color:#059669;">
-            </div>
-          </div>
-        </div>
-
-        <div class="section-card">
-  <h3 class="section-title">💵 Cash Count</h3>
-
-  <!-- Notes total -->
-  <div class="input-group">
-    <label class="input-label">Cash Notes Total</label>
-    <div class="input-wrapper">
-      <span class="currency-prefix">SAR</span>
-      <input type="number" class="input-field" id="cashNotes" step="0.01" placeholder="0.00" readonly>
-    </div>
-  </div>
-
-  <!-- NOTES: 500, 100, 50, 20, 10, 5 -->
-  <div class="cash-breakdown" id="notesGrid">
-    <div class="denomination"><span class="denom-label">500</span>
-      <input type="number" class="denom-input" id="note500" placeholder="0" onchange="app.calculateCashNotes()">
-      <span class="denom-value" id="val500">0</span>
-    </div>
-    <div class="denomination"><span class="denom-label">100</span>
-      <input type="number" class="denom-input" id="note100" placeholder="0" onchange="app.calculateCashNotes()">
-      <span class="denom-value" id="val100">0</span>
-    </div>
-    <div class="denomination"><span class="denom-label">50</span>
-      <input type="number" class="denom-input" id="note50" placeholder="0" onchange="app.calculateCashNotes()">
-      <span class="denom-value" id="val50">0</span>
-    </div>
-    <div class="denomination"><span class="denom-label">20</span>
-      <input type="number" class="denom-input" id="note20" placeholder="0" onchange="app.calculateCashNotes()">
-      <span class="denom-value" id="val20">0</span>
-    </div>
-    <div class="denomination"><span class="denom-label">10</span>
-      <input type="number" class="denom-input" id="note10" placeholder="0" onchange="app.calculateCashNotes()">
-      <span class="denom-value" id="val10">0</span>
-    </div>
-    <div class="denomination"><span class="denom-label">5</span>
-      <input type="number" class="denom-input" id="note5" placeholder="0" onchange="app.calculateCashNotes()">
-      <span class="denom-value" id="val5">0</span>
-    </div>
-  </div>
-
-  <!-- Coins total -->
-  <div class="input-group" style="margin-top:15px;">
-    <label class="input-label">Coins Total</label>
-    <div class="input-wrapper">
-      <span class="currency-prefix">SAR</span>
-      <input type="number" class="input-field" id="coinsTotal" step="0.01" placeholder="0.00" readonly>
-    </div>
-  </div>
-
-  <!-- COINS: 2, 1, 0.50, 0.25 (optional breakdown) -->
-  <div class="cash-breakdown" id="coinsGrid">
-    <div class="denomination"><span class="denom-label">2</span>
-      <input type="number" class="denom-input" id="coin2" placeholder="0" onchange="app.calculateCoins()">
-      <span class="denom-value" id="valC2">0.00</span>
-    </div>
-    <div class="denomination"><span class="denom-label">1</span>
-      <input type="number" class="denom-input" id="coin1" placeholder="0" onchange="app.calculateCoins()">
-      <span class="denom-value" id="valC1">0.00</span>
-    </div>
-    <div class="denomination"><span class="denom-label">0.50</span>
-      <input type="number" class="denom-input" id="coin050" placeholder="0" onchange="app.calculateCoins()">
-      <span class="denom-value" id="valC050">0.00</span>
-    </div>
-    <div class="denomination"><span class="denom-label">0.25</span>
-      <input type="number" class="denom-input" id="coin025" placeholder="0" onchange="app.calculateCoins()">
-      <span class="denom-value" id="valC025">0.00</span>
-    </div>
-  </div>
-
-  <!-- Actual -->
-  <div class="input-group" style="background:#eff6ff;padding:12px;border-radius:8px;margin-top:10px;">
-    <label class="input-label" style="font-size:16px;">Actual Cash Total</label>
-    <div class="input-wrapper">
-      <span class="currency-prefix" style="font-size:16px;">SAR</span>
-      <input type="number" class="input-field result-field" id="actualCashTotal"
-             readonly style="font-size:16px;color:#2563eb;">
-    </div>
-  </div>
-</div>
-
-
-      <div id="differenceIndicator" class="difference-indicator balanced">
-        <div style="font-size:14px;opacity:.8;margin-bottom:5px;">Cash Difference</div>
-        <div id="cashDifference" style="font-size:28px;">SAR 0.00</div>
-        <div id="differenceStatus" style="font-size:12px;margin-top:5px;">Balanced</div>
-      </div>
-
-      <div class="summary-section">
-        <h3>📊 Daily Summary</h3>
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="summary-label">Total Sales</div>
-            <div class="summary-value" id="summaryTotalSales">SAR 0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Cash Collected</div>
-            <div class="summary-value" id="summaryCashCollected">SAR 0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Credit Sales</div>
-            <div class="summary-value" id="summaryCreditSales">SAR 0</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Bank Deposits</div>
-            <div class="summary-value" id="summaryBankDeposits">SAR 0</div>
-          </div>
+        <div class="input-group">
+          <label class="input-label" for="salesDate">Date</label>
+          <input type="date" id="salesDate" class="input-field" onchange="app.updateProgress()">
         </div>
       </div>
 
-      <div class="btn-group">
-        <button class="btn btn-primary" onclick="app.saveData()" id="saveBtn">💾 Save to Google Sheets</button>
-        <button class="btn btn-secondary" onclick="app.exportReport()">📄 Export Report</button>
-        <button class="btn btn-danger" onclick="app.clearData()">🗑️ Clear All</button>
+      <div class="quick-actions">
+        <button class="btn btn-primary" onclick="app.fetchInventoryData()" title="F2">
+          <span class="btn-icon">📥</span> Fetch from Inventory
+        </button>
+        <button class="btn btn-secondary" onclick="app.saveData()" title="Ctrl+S">
+          <span class="btn-icon">💾</span> Save Data
+        </button>
+        <button class="btn btn-secondary" onclick="app.loadYesterdayCashFlow()">
+          <span class="btn-icon">🔄</span> Load Yesterday's Cash
+        </button>
+        <button class="btn btn-secondary" onclick="app.clearData()">
+          <span class="btn-icon">🗑️</span> Clear All
+        </button>
       </div>
+    </section>
+
+    <!-- ========== SALES DATA SECTION ========== -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">Sales Data</h2>
+        <button class="collapse-btn" onclick="app.toggleSection('salesSection')" aria-label="Toggle section">
+          <span class="collapse-icon" id="salesSectionIcon">▼</span>
+        </button>
+      </div>
+
+      <div class="section-content" id="salesSection">
+        <!-- Search & Filter Controls -->
+        <div class="search-controls">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              type="search"
+              id="productSearch"
+              class="search-input"
+              placeholder="Search by code or name (Ctrl+F)..."
+              oninput="app.filterProducts()"
+              onkeydown="if(event.key==='Escape') { this.value=''; app.filterProducts(); }">
+          </div>
+          <div class="filter-group">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+              <input type="checkbox" id="toggleSoldOnly" onchange="app.filterProducts()">
+              <span>Show only sold items</span>
+            </label>
+            <button class="btn-icon-only" onclick="document.getElementById('productSearch').value=''; document.getElementById('toggleSoldOnly').checked=false; app.filterProducts();" title="Clear filters">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <!-- Sales Table -->
+        <div class="table-responsive">
+          <table class="sales-table" id="salesTable">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Code</th>
+                <th>Item</th>
+                <th>Unit</th>
+                <th>Price (SAR)</th>
+                <th>Qty Sold</th>
+                <th>Total (SAR)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="salesTableBody">
+              <!-- Rows will be populated by app.js -->
+            </tbody>
+            <tfoot>
+              <tr style="background:#f3f4f6;font-weight:bold;">
+                <td colspan="6" style="text-align:right;">Total Sales Value:</td>
+                <td id="totalSalesDisplay">SAR 0.00</td>
+                <td><span id="soldCount">0</span> sold</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="section-summary">
+          <strong>Total Sales:</strong>
+          <span id="totalSalesValue" class="currency-value">SAR 0.00</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== PAYMENT METHODS SECTION ========== -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">Payment Methods</h2>
+        <button class="collapse-btn" onclick="app.toggleSection('paymentsSection')" aria-label="Toggle section">
+          <span class="collapse-icon" id="paymentsSectionIcon">▼</span>
+        </button>
+      </div>
+
+      <div class="section-content" id="paymentsSection">
+        <div class="grid-2">
+          <!-- Discount -->
+          <div class="input-group">
+            <label class="input-label negative">(-) Discount (Base)</label>
+            <div class="input-wrapper">
+              <span class="currency-prefix">SAR</span>
+              <input type="number" id="discountBase" class="input-field" step="0.01" value="0" onchange="app.handleDiscountChange()">
+            </div>
+          </div>
+          <div class="input-group">
+            <label class="input-label negative">(-) Discount (incl. 15% VAT)</label>
+            <div class="input-wrapper">
+              <span class="currency-prefix">SAR</span>
+              <input type="number" id="discountWithVAT" class="input-field result-field" readonly>
+            </div>
+          </div>
+
+          <!-- Credit Sales -->
+          <div class="input-group">
+            <label class="input-label negative">(-) Credit Sales</label>
+            <div class="input-wrapper">
+              <span class="currency-prefix">SAR</span>
+              <input type="number" id="creditSales" class="input-field" step="0.01" value="0" oninput="app.calculateCashBalance()">
+            </div>
+          </div>
+
+          <!-- Credit Repayment -->
+          <div class="input-group">
+            <label class="input-label positive">(+) Credit Repayment</label>
+            <div class="input-wrapper">
+              <span class="currency-prefix">SAR</span>
+              <input type="number" id="creditRepayment" class="input-field" step="0.01" value="0" oninput="app.calculateCashBalance()">
+            </div>
+          </div>
+
+          <!-- Bank POS -->
+          <div class="input-group">
+            <label class="input-label negative">(-) Bank POS</label>
+            <div class="input-wrapper">
+              <span class="currency-prefix">SAR</span>
+              <input type="number" id="bankPOS" class="input-field" step="0.01" value="0" oninput="app.calculateCashBalance()">
+            </div>
+          </div>
+
+          <!-- Bank Transfer -->
+          <div class="input-group">
+            <label class="input-label negative">(-) Bank Transfer</label>
+            <div class="input-wrapper">
+              <span class="currency-prefix">SAR</span>
+              <input type="number" id="bankTransfer" class="input-field" step="0.01" value="0" oninput="app.calculateCashBalance()">
+            </div>
+          </div>
+
+          <!-- Cheque -->
+          <div class="input-group">
+            <label class="input-label negative">(-) Cheque</label>
+            <div class="input-wrapper">
+              <span class="currency-prefix">SAR</span>
+              <input type="number" id="cheque" class="input-field" step="0.01" value="0" oninput="app.calculateCashBalance()">
+            </div>
+          </div>
+        </div>
+
+        <div class="section-summary">
+          <strong>Expected Cash Balance:</strong>
+          <span id="expectedCashBalance" class="currency-value">SAR 0.00</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== CASH COUNT SECTION ========== -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">Cash Count</h2>
+        <button class="collapse-btn" onclick="app.toggleSection('cashCountSection')" aria-label="Toggle section">
+          <span class="collapse-icon" id="cashCountSectionIcon">▼</span>
+        </button>
+      </div>
+
+      <div class="section-content" id="cashCountSection">
+        <h3 class="subsection-title">Cash Notes</h3>
+        <div class="denominations-grid">
+
+          <!-- 500 SAR Note -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">500 SAR</span>
+              <span class="denom-total" id="val500">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('note500', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note500', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note500', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('note500', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="note500" min="0" step="1" value="0" oninput="app.calculateCashNotes()">
+            <button class="clear-btn" onclick="app.clearDenom('note500')">Clear</button>
+          </div>
+
+          <!-- 100 SAR Note -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">100 SAR</span>
+              <span class="denom-total" id="val100">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('note100', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note100', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note100', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('note100', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="note100" min="0" step="1" value="0" oninput="app.calculateCashNotes()">
+            <button class="clear-btn" onclick="app.clearDenom('note100')">Clear</button>
+          </div>
+
+          <!-- 50 SAR Note -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">50 SAR</span>
+              <span class="denom-total" id="val50">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('note50', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note50', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note50', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('note50', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="note50" min="0" step="1" value="0" oninput="app.calculateCashNotes()">
+            <button class="clear-btn" onclick="app.clearDenom('note50')">Clear</button>
+          </div>
+
+          <!-- 20 SAR Note -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">20 SAR</span>
+              <span class="denom-total" id="val20">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('note20', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note20', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note20', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('note20', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="note20" min="0" step="1" value="0" oninput="app.calculateCashNotes()">
+            <button class="clear-btn" onclick="app.clearDenom('note20')">Clear</button>
+          </div>
+
+          <!-- 10 SAR Note -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">10 SAR</span>
+              <span class="denom-total" id="val10">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('note10', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note10', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note10', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('note10', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="note10" min="0" step="1" value="0" oninput="app.calculateCashNotes()">
+            <button class="clear-btn" onclick="app.clearDenom('note10')">Clear</button>
+          </div>
+
+          <!-- 5 SAR Note -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">5 SAR</span>
+              <span class="denom-total" id="val5">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('note5', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note5', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('note5', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('note5', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="note5" min="0" step="1" value="0" oninput="app.calculateCashNotes()">
+            <button class="clear-btn" onclick="app.clearDenom('note5')">Clear</button>
+          </div>
+
+        </div>
+
+        <div class="section-summary">
+          <strong>Cash Notes Total:</strong>
+          <span id="cashNotes" class="currency-value">SAR 0.00</span>
+        </div>
+
+        <h3 class="subsection-title">Coins</h3>
+        <div class="denominations-grid">
+
+          <!-- 2 SAR Coin -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">2 SAR</span>
+              <span class="denom-total" id="valC2">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('coin2', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin2', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin2', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin2', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="coin2" min="0" step="1" value="0" oninput="app.calculateCoins()">
+            <button class="clear-btn" onclick="app.clearDenom('coin2')">Clear</button>
+          </div>
+
+          <!-- 1 SAR Coin -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">1 SAR</span>
+              <span class="denom-total" id="valC1">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('coin1', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin1', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin1', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin1', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="coin1" min="0" step="1" value="0" oninput="app.calculateCoins()">
+            <button class="clear-btn" onclick="app.clearDenom('coin1')">Clear</button>
+          </div>
+
+          <!-- 0.50 SAR Coin -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">0.50 SAR</span>
+              <span class="denom-total" id="valC050">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('coin050', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin050', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin050', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin050', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="coin050" min="0" step="1" value="0" oninput="app.calculateCoins()">
+            <button class="clear-btn" onclick="app.clearDenom('coin050')">Clear</button>
+          </div>
+
+          <!-- 0.25 SAR Coin -->
+          <div class="denom-card">
+            <div class="denom-header">
+              <span class="denom-label">0.25 SAR</span>
+              <span class="denom-total" id="valC025">0.00</span>
+            </div>
+            <div class="denom-controls">
+              <button class="quick-btn quick-minus" onclick="app.quickAdd('coin025', -1)">-1</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin025', 1)">+1</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin025', 5)">+5</button>
+              <button class="quick-btn" onclick="app.quickAdd('coin025', 10)">+10</button>
+            </div>
+            <input type="number" class="denom-input" id="coin025" min="0" step="1" value="0" oninput="app.calculateCoins()">
+            <button class="clear-btn" onclick="app.clearDenom('coin025')">Clear</button>
+          </div>
+
+        </div>
+
+        <div class="section-summary">
+          <strong>Coins Total:</strong>
+          <span id="coinsTotal" class="currency-value">SAR 0.00</span>
+        </div>
+
+        <div class="section-summary" style="background:#eff6ff;padding:12px;border-radius:8px;margin-top:15px;">
+          <strong style="font-size:16px;">Actual Cash Total:</strong>
+          <span id="actualCashTotal" class="currency-value" style="font-size:18px;color:#2563eb;">SAR 0.00</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== DIFFERENCE INDICATOR ========== -->
+    <section class="difference-card balanced" id="differenceIndicator">
+      <div class="difference-content">
+        <h3 class="difference-title">Cash Difference</h3>
+        <div class="difference-amount" id="cashDifference">SAR 0.00</div>
+        <div class="difference-status" id="differenceStatus">Enter data to calculate</div>
+      </div>
+    </section>
+
+    <!-- ========== CHARTS SECTION ========== -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">Insights</h2>
+        <button class="collapse-btn" onclick="app.toggleSection('chartsSection')" aria-label="Toggle section">
+          <span class="collapse-icon" id="chartsSectionIcon">▼</span>
+        </button>
+      </div>
+
+      <div class="section-content collapsed" id="chartsSection">
+        <div class="charts-grid">
+          <div class="chart-widget">
+            <h4>This Week's Sales</h4>
+            <canvas id="weekChart" width="400" height="200"></canvas>
+            <div class="chart-summary" id="weekSummary">Loading...</div>
+          </div>
+
+          <div class="chart-widget">
+            <h4>Category Breakdown</h4>
+            <canvas id="categoryChart" width="400" height="200"></canvas>
+            <div class="chart-summary" id="categorySummary">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== FINAL SUMMARY ========== -->
+    <section class="section-card summary-card">
+      <h2 class="section-title">Summary</h2>
+      <div class="summary-grid">
+        <div class="summary-row">
+          <span class="summary-label">Total Sales:</span>
+          <span class="summary-value" id="summaryTotalSales">SAR 0.00</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Cash Collected:</span>
+          <span class="summary-value" id="summaryCashCollected">SAR 0.00</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Credit Sales:</span>
+          <span class="summary-value" id="summaryCreditSales">SAR 0.00</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Bank Deposits:</span>
+          <span class="summary-value" id="summaryBankDeposits">SAR 0.00</span>
+        </div>
+        <div class="summary-row highlight">
+          <span class="summary-label">Expected Cash:</span>
+          <span class="summary-value" id="summaryExpectedCash">SAR 0.00</span>
+        </div>
+        <div class="summary-row highlight">
+          <span class="summary-label">Actual Cash:</span>
+          <span class="summary-value" id="summaryActualCash">SAR 0.00</span>
+        </div>
+        <div class="summary-row highlight">
+          <span class="summary-label">Difference:</span>
+          <span class="summary-value" id="summaryDifference">SAR 0.00</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== STATUS MESSAGE ========== -->
+    <div class="status-message" id="statusMessage"></div>
+
+    <!-- ========== LOADING OVERLAY ========== -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+      <div class="loading-spinner"></div>
     </div>
-  </div>
 
-  <div class="sync-status">
-    <div class="sync-indicator disconnected" id="syncIndicator"></div>
-    <span class="sync-text" id="syncText">Connecting...</span>
-  </div>
+    <!-- ========== SYNC STATUS ========== -->
+    <div class="sync-status">
+      <div class="sync-indicator disconnected" id="syncIndicator"></div>
+      <span class="sync-text" id="syncText">Connecting...</span>
+    </div>
 
-  <div id="loadingOverlay" class="loading-overlay hidden">
-    <div class="loading-spinner"></div>
   </div>
 
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script>
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('Service Worker registered'))
+        .catch(err => console.log('Service Worker registration failed:', err));
+    }
+  </script>
 </body>
 </html>
