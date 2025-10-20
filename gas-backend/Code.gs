@@ -254,6 +254,9 @@ function calculateSalesFromInventory(payload) {
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
 
+    // DEBUG: Log actual headers found
+    Logger.log('Headers found: ' + JSON.stringify(headers));
+
     // Find column indices
     const dateIdx = headers.indexOf('Date');
     const codeIdx = headers.indexOf('Code');
@@ -262,10 +265,24 @@ function calculateSalesFromInventory(payload) {
     const closingIdx = headers.indexOf('Closing Stock');
     const transferIdx = headers.indexOf('Stock Transfer'); // Add support for stock transfer
 
+    // DEBUG: Return detailed error if columns not found
     if (dateIdx === -1 || codeIdx === -1) {
       return {
         status: 'error',
-        error: 'Required columns not found in inventory sheet'
+        error: 'Required columns not found in inventory sheet',
+        debug: {
+          headersFound: headers,
+          dateColumnIndex: dateIdx,
+          codeColumnIndex: codeIdx,
+          openingColumnIndex: openingIdx,
+          purchasesColumnIndex: purchasesIdx,
+          closingColumnIndex: closingIdx,
+          transferColumnIndex: transferIdx,
+          expectedHeaders: ['Date', 'Code', 'Opening Stock', 'Purchases', 'Closing Stock', 'Stock Transfer'],
+          totalRows: data.length,
+          sheetName: sheetName,
+          spreadsheetId: SHEET_IDS.INVENTORY_SOURCE
+        }
       };
     }
 
@@ -374,7 +391,28 @@ function calculateSalesFromInventory(payload) {
         daysGap: lastAvailableDate ? Math.floor((currDateObj - new Date(lastAvailableDate)) / (1000 * 60 * 60 * 24)) : null,
         message: lastAvailableDate
           ? `Using data from ${lastAvailableDate} (${Math.floor((currDateObj - new Date(lastAvailableDate)) / (1000 * 60 * 60 * 24))} days ago)`
-          : 'No previous data found'
+          : 'No previous data found',
+        // DEBUG INFO
+        debug: {
+          totalRows: data.length - 1,
+          headersFound: headers,
+          columnIndices: {
+            date: dateIdx,
+            code: codeIdx,
+            opening: openingIdx,
+            purchases: purchasesIdx,
+            closing: closingIdx,
+            transfer: transferIdx
+          },
+          availableDates: Array.from(availableDates).sort(),
+          datesInInventory: Object.keys(inventoryByDate).sort(),
+          currentInventoryProducts: Object.keys(currentInventory).length,
+          previousInventoryProducts: Object.keys(previousInventory).length,
+          totalUniqueProducts: allCodes.size,
+          salesDataCount: salesData.length,
+          sheetName: sheetName,
+          spreadsheetId: SHEET_IDS.INVENTORY_SOURCE
+        }
       }
     };
 
