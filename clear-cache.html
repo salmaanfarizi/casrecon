@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clear Cache - Cash Reconciliation</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+    .btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    .btn:hover {
+      background: #5a67d8;
+    }
+    .btn-danger {
+      background: #ef4444;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .status {
+      margin: 20px 0;
+      padding: 12px;
+      border-radius: 8px;
+      display: none;
+    }
+    .status.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #ef4444;
+    }
+    .status.show {
+      display: block;
+    }
+    ol {
+      line-height: 1.8;
+      margin: 20px 0;
+    }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🧹 Clear Cache</h1>
+    <p>If you're seeing old data or errors, you need to clear the service worker cache.</p>
+
+    <div id="status" class="status"></div>
+
+    <h2>Option 1: Automatic (Click Button)</h2>
+    <button class="btn" onclick="clearServiceWorker()">Clear Service Worker & Reload</button>
+
+    <h2>Option 2: Manual (Step by Step)</h2>
+    <ol>
+      <li>Press <code>F12</code> to open Developer Tools</li>
+      <li>Go to <strong>Application</strong> tab (Chrome) or <strong>Storage</strong> tab (Firefox)</li>
+      <li>Click <strong>Service Workers</strong> in the left sidebar</li>
+      <li>Click <strong>Unregister</strong> next to the service worker</li>
+      <li>Click <strong>Clear storage</strong> in the left sidebar</li>
+      <li>Check <strong>Unregister service workers</strong></li>
+      <li>Check <strong>Cache storage</strong></li>
+      <li>Click <strong>Clear site data</strong></li>
+      <li>Close Developer Tools</li>
+      <li>Press <code>Ctrl+Shift+R</code> (Windows) or <code>Cmd+Shift+R</code> (Mac) to hard refresh</li>
+    </ol>
+
+    <h2>Option 3: Nuclear Option</h2>
+    <button class="btn btn-danger" onclick="nuclearClear()">Delete EVERYTHING & Reload</button>
+    <p><small><strong>Warning:</strong> This will delete all saved data, localStorage, and caches for this site.</small></p>
+
+    <hr style="margin: 30px 0;">
+
+    <button class="btn" onclick="window.location.href='/'">← Back to App</button>
+  </div>
+
+  <script>
+    function showStatus(message, type) {
+      const status = document.getElementById('status');
+      status.textContent = message;
+      status.className = `status ${type} show`;
+      setTimeout(() => status.classList.remove('show'), 5000);
+    }
+
+    async function clearServiceWorker() {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (let registration of registrations) {
+            await registration.unregister();
+          }
+
+          const cacheNames = await caches.keys();
+          for (let cacheName of cacheNames) {
+            await caches.delete(cacheName);
+          }
+
+          showStatus('✅ Service worker and caches cleared! Reloading...', 'success');
+          setTimeout(() => window.location.href = '/', 1500);
+        } else {
+          showStatus('❌ Service workers not supported in this browser', 'error');
+        }
+      } catch (err) {
+        showStatus('❌ Error: ' + err.message, 'error');
+      }
+    }
+
+    async function nuclearClear() {
+      if (!confirm('⚠️ This will delete ALL data for this site. Continue?')) {
+        return;
+      }
+
+      try {
+        // Clear service workers
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (let registration of registrations) {
+            await registration.unregister();
+          }
+        }
+
+        // Clear all caches
+        const cacheNames = await caches.keys();
+        for (let cacheName of cacheNames) {
+          await caches.delete(cacheName);
+        }
+
+        // Clear localStorage
+        localStorage.clear();
+
+        // Clear sessionStorage
+        sessionStorage.clear();
+
+        // Clear indexedDB
+        if (window.indexedDB) {
+          const dbs = await window.indexedDB.databases();
+          dbs.forEach(db => window.indexedDB.deleteDatabase(db.name));
+        }
+
+        showStatus('✅ Everything cleared! Reloading...', 'success');
+        setTimeout(() => {
+          window.location.href = '/';
+          window.location.reload(true);
+        }, 1500);
+      } catch (err) {
+        showStatus('❌ Error: ' + err.message, 'error');
+      }
+    }
+  </script>
+</body>
+</html>
