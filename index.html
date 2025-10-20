@@ -74,7 +74,7 @@
       <div class="grid-2">
         <div class="input-group">
           <label class="input-label" for="routeName">Route Name</label>
-          <select id="routeName" class="input-field" onchange="app.handleRouteChange()">
+          <select id="routeName" class="input-field" onchange="if(this.value) app.selectRoute(this.value)">
             <option value="">-- Select Route --</option>
             <option value="Al-Hasa 1">Al-Hasa 1</option>
             <option value="Al-Hasa 2">Al-Hasa 2</option>

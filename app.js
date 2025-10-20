@@ -93,14 +93,6 @@ class CashReconciliationApp {
     }
   }
 
-  // Handle route selection from dropdown
-  handleRouteChange() {
-    const routeName = this.getValue('routeName');
-    if (routeName) {
-      this.selectRoute(routeName);
-    }
-  }
-
   selectRoute(route) {
     this.currentRoute = route;
 
@@ -142,6 +134,8 @@ class CashReconciliationApp {
         this.CATALOG[title] = items;
       });
       this.buildSkuIndex(this.CATALOG);
+      console.log('Catalog loaded successfully. SKU_INDEX has', Object.keys(this.SKU_INDEX).length, 'items');
+      console.log('Sample SKU_INDEX entries:', Object.entries(this.SKU_INDEX).slice(0, 3));
       this.setCatalogStatus('ready');
     } catch (e) {
       console.error('Catalog load failed:', e);
@@ -171,6 +165,7 @@ class CashReconciliationApp {
         ]
       };
       this.buildSkuIndex(this.CATALOG);
+      console.log('Using fallback catalog. SKU_INDEX has', Object.keys(this.SKU_INDEX).length, 'items');
     }
   }
 
@@ -332,24 +327,44 @@ class CashReconciliationApp {
   }
 
   populateSalesDataFromCalc(rows) {
+    console.log('populateSalesDataFromCalc called with rows:', rows);
+    console.log('SKU_INDEX has', Object.keys(this.SKU_INDEX).length, 'items');
+
+    // First clear all existing values
     Object.values(this.SKU_INDEX).forEach(meta => {
       const input = document.getElementById(`qty_${meta.code}`);
       if (input) input.value = '';
       this.setText(`total_${meta.code}`, '0.00');
       this.updateRowStatus(meta.code, 0);
     });
+
+    // Then populate with new data
+    let populatedCount = 0;
     rows.forEach(r => {
       const code = r.code;
       const qty  = this.toNum(r.salesQty);
+      console.log(`Processing: code=${code}, salesQty=${r.salesQty}, qty=${qty}`);
+
       const meta = this.SKU_INDEX[code];
-      if (!meta) return;
+      if (!meta) {
+        console.warn(`No metadata found for code: ${code}`);
+        return;
+      }
+
       const input = document.getElementById(`qty_${code}`);
       if (input) {
         input.value = qty;
-        this.setText(`total_${code}`, (qty * Number(meta.price || 0)).toFixed(2));
+        const total = (qty * Number(meta.price || 0)).toFixed(2);
+        this.setText(`total_${code}`, total);
         this.updateRowStatus(code, qty);
+        populatedCount++;
+        console.log(`✓ Populated ${code}: qty=${qty}, total=${total}`);
+      } else {
+        console.warn(`Input element not found for code: ${code}`);
       }
     });
+
+    console.log(`Total items populated: ${populatedCount} out of ${rows.length}`);
     this.recomputeSalesGrandTotal();
     this.applySoldOnlyFilter();
   }
